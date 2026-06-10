@@ -47,6 +47,8 @@ Trois parties :
 
 ## 🚀 Démarrage rapide — le tableau de bord (parents)
 
+> 📘 Installation & lancement pas à pas (Linux **et** Windows) : **[docs/install.md](docs/install.md)**.
+
 ### Linux (Fedora et dérivés)
 
 ```bash
@@ -158,6 +160,10 @@ kidcode-fedora/
 PRs bienvenues ! Une bonne **première contribution** : les commentaires `#` dans les exemples de
 code (`guides/gen-tuto.py`, `CODES`) sont en français — les traduire en anglais (ou une autre
 langue) améliorerait encore le guide anglais.
+
+## 🙏 Crédits
+
+Conçu et développé avec l'aide de **Claude** (Anthropic).
 
 ## 📄 Licence
 

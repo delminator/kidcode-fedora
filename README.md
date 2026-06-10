@@ -47,6 +47,8 @@ It comes in two halves:
 
 ## 🚀 Quick start — the dashboard (parents)
 
+> 📘 Full step-by-step install & launch (Linux **and** Windows): **[docs/install.md](docs/install.md)**.
+
 ### Linux (Fedora & co.)
 
 ```bash
@@ -158,6 +160,10 @@ kidcode-fedora/
 PRs welcome! A great **good first issue**: the `#` comments inside the code samples
 (`guides/gen-tuto.py`, `CODES`) are in French — translating them to English (or another
 language) would make the English guide even better.
+
+## 🙏 Credits
+
+Designed and built with the help of **Claude** (Anthropic).
 
 ## 📄 License
 
