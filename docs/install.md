@@ -60,8 +60,19 @@ powershell -ExecutionPolicy Bypass -File install\install.ps1
 ```
 
 `install.ps1` installs `paramiko`/`cryptography` and creates a **KidCode** shortcut on your Desktop.
-(If `python` is missing, install it from <https://www.python.org/downloads/> and tick
-*"Add python.exe to PATH"*.)
+
+**Python prerequisite.** You need a real Python 3 first:
+
+```powershell
+winget install -e --id Python.Python.3.12
+```
+
+or download it from <https://www.python.org/downloads/> and **tick "Add python.exe to PATH"**.
+
+> ⚠️ On Windows 10/11, typing `python` may open the **Microsoft Store** instead of running Python
+> (it's a placeholder "App execution alias"). If that happens, install Python as above, or turn the
+> alias off in **Settings → Apps → Advanced app settings → App execution aliases → `python.exe` (Off)**.
+> The installer prefers the `py` launcher, which avoids this.
 
 ### Simple launch
 
@@ -151,8 +162,20 @@ powershell -ExecutionPolicy Bypass -File install\install.ps1
 ```
 
 `install.ps1` installe `paramiko`/`cryptography` et crée un raccourci **KidCode** sur le Bureau.
-(Si `python` manque, installe-le depuis <https://www.python.org/downloads/> en cochant
-*« Add python.exe to PATH »*.)
+
+**Pré-requis Python.** Il te faut d'abord un vrai Python 3 :
+
+```powershell
+winget install -e --id Python.Python.3.12
+```
+
+ou télécharge-le depuis <https://www.python.org/downloads/> en **cochant « Add python.exe to PATH »**.
+
+> ⚠️ Sur Windows 10/11, taper `python` peut ouvrir le **Microsoft Store** au lieu de lancer Python
+> (c'est un « alias d'exécution » factice). Si ça arrive, installe Python comme ci-dessus, ou
+> désactive l'alias dans **Paramètres → Applications → Paramètres avancés des applications →
+> Alias d'exécution d'application → `python.exe` (Désactivé)**. L'installeur préfère le lanceur `py`,
+> qui évite ce piège.
 
 ### Lancement simple
 
