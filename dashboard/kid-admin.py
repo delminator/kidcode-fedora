@@ -500,6 +500,76 @@ def bulk_action(action, params=None, names=None):
     return _parallel(machines, fn)
 
 
+def import_bulk(text):
+    """Ajoute/maj plusieurs machines d'un coup (1 par ligne : nom|ip|user|pwd|compte|mode|dns)."""
+    machines = load_machines()
+    by_name = {m["name"]: m for m in machines}
+    added = updated = 0
+    errors = []
+    for raw in (text or "").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        parts = [p.strip() for p in re.split(r"[|,;\t]+", line)]
+        if len(parts) < 4:
+            errors.append(f"« {line} » : il faut au moins nom, ip, user, mot de passe")
+            continue
+        name = _clean(parts[0]); ip = _clean(parts[1]); user = _clean(parts[2], "root")
+        pwd = parts[3].replace("|", "").replace("\n", "").replace("\r", "").strip()
+        account = _clean(parts[4]) if len(parts) > 4 else ""
+        mode = ((_clean(parts[5]) or "timetrack").lower()) if len(parts) > 5 else "timetrack"
+        dns = _clean(parts[6]) if len(parts) > 6 else ""
+        if not name or (not ip and not dns):
+            errors.append(f"{name or '?'} : nom + (ip ou nom mDNS) requis")
+            continue
+        if mode not in ("timetrack", "lockdown"):
+            mode = "timetrack"
+        if not pwd:
+            old = by_name.get(name)
+            if old and old["pwd"]:
+                pwd = old["pwd"]
+            else:
+                errors.append(f"{name} : mot de passe requis")
+                continue
+        if name in by_name:
+            updated += 1
+        else:
+            added += 1
+        by_name[name] = {"name": name, "ip": ip, "user": user, "pwd": pwd,
+                         "account": account, "mode": mode, "dns": dns}
+    _write_machines(list(by_name.values()))
+    return {"ok": True, "added": added, "updated": updated, "errors": errors}
+
+
+def discover_agents():
+    """Découvre les PC qui publient le service mDNS _kidcode._tcp (agents installés)."""
+    import shutil
+    import subprocess
+    found = {}
+    if shutil.which("avahi-browse"):
+        try:
+            out = subprocess.run(["avahi-browse", "-rpt", "_kidcode._tcp"],
+                                 capture_output=True, text=True, timeout=10).stdout
+            for line in out.splitlines():
+                f = line.split(";")
+                if len(f) >= 8 and f[0] == "=" and f[2] == "IPv4":
+                    host = f[6].rstrip(".")          # ex: salon.local
+                    ip = f[7]
+                    name = (f[3] or host.split(".")[0]).strip()
+                    if host:
+                        found[host] = {"name": name, "ip": ip, "dns": host}
+        except Exception:  # noqa
+            pass
+    if not found:
+        return {"ok": False, "msg": "découverte indisponible ici "
+                "(installe 'avahi-tools', ou utilise l'import en masse)"}
+    known = {m["dns"] for m in load_machines() if m.get("dns")} \
+        | {m["ip"] for m in load_machines()}
+    for v in found.values():
+        v["new"] = v["dns"] not in known and v["ip"] not in known
+    return {"ok": True, "found": sorted(found.values(), key=lambda x: x["name"])}
+
+
 def load_master():
     if MASTER_LIST.exists():
         return MASTER_LIST.read_text()
@@ -717,6 +787,23 @@ td:first-child{white-space:nowrap;color:#ffd479;font-family:ui-monospace,monospa
   </div>
 
   <div class=card>
+    <h2>🏫 Outils de classe</h2>
+    <div class=bar style="flex-wrap:wrap;gap:6px;align-items:center">
+      <button class=row onclick=discover()>🔎 Découvrir les PC (mDNS)</button>
+      <span class=status id=discst></span>
+    </div>
+    <div id=disclist></div>
+    <hr>
+    <b>📋 Import en masse</b>
+    <p class=muted style="font-size:12px;margin:4px 0">Une machine par ligne :
+    <code>nom|ip|user|motdepasse|compte|mode|nom.local</code> (séparateur <code>|</code> <code>,</code> <code>;</code> ou tab ;
+    seuls nom, ip, user, motdepasse sont obligatoires).</p>
+    <textarea id=bulktext spellcheck=false placeholder="salle-01|192.168.1.101|root|MDP|eleve|timetrack|salle-01.local
+salle-02|192.168.1.102|root|MDP|eleve|timetrack|salle-02.local" style="width:100%;height:90px;font-family:monospace;font-size:12px"></textarea>
+    <div class=bar><button class=primary onclick=importBulk()>📥 Importer</button> <span class=status id=bulkimpst></span></div>
+  </div>
+
+  <div class=card>
     <h2>Machines &nbsp;<button onclick=refreshStatus() style="font-size:12px;padding:4px 10px">🔄 Rafraîchir le statut</button></h2>
     <div class=bar style="margin:6px 0 10px;flex-wrap:wrap;gap:6px;align-items:center">
       <b>👥 Toute la classe :</b>
@@ -908,6 +995,34 @@ async function bulkTime(){
   const ok=r.filter(x=>x.ok).length, ko=r.length-ok;
   st.innerHTML='<span class=ok>✅ temps appliqué à '+ok+' PC</span>'+(ko?(' · <span class=bad>❌ '+ko+'</span>'):'');
   MACHINES.forEach(x=>loadTL(x.name));
+}
+function toggleDisc(v){ document.querySelectorAll('.dchk').forEach(c=>c.checked=v); }
+async function discover(){
+  const st=document.getElementById('discst'); st.textContent='⏳ scan du réseau…';
+  const r=await j('/api/discover'); const dl=document.getElementById('disclist');
+  if(!r.ok){ st.innerHTML='<span class=bad>'+(r.msg||'')+'</span>'; dl.innerHTML=''; return; }
+  window._DISC=r.found; st.innerHTML='<span class=ok>'+r.found.length+' PC trouvés</span>';
+  if(!r.found.length){ dl.innerHTML='<p class=muted>Aucun agent kidcode publié en mDNS sur le réseau.</p>'; return; }
+  dl.innerHTML='<table><tr><th><input type=checkbox onclick=toggleDisc(this.checked)></th><th>Nom</th><th>IP</th><th>mDNS</th><th></th></tr>'+
+    r.found.map((x,i)=>'<tr><td><input type=checkbox class=dchk data-i="'+i+'" '+(x.new?'checked':'')+'></td><td>'+x.name+'</td><td>'+x.ip+'</td><td>'+x.dns+'</td><td>'+(x.new?'<span class=ok>nouveau</span>':'<span class=muted>déjà là</span>')+'</td></tr>').join('')+'</table>'+
+    '<div class=bar style="margin-top:6px;flex-wrap:wrap">Compte enfant : <input id=dacc value=eleve style="width:90px"> · Mot de passe root : <input id=dpwd type=password style="width:120px"> <button class=primary onclick=addDiscovered()>➕ Ajouter les sélectionnés</button></div>';
+}
+async function addDiscovered(){
+  const acc=document.getElementById('dacc').value||'eleve', pwd=document.getElementById('dpwd').value;
+  if(!pwd){ alert('Indique le mot de passe root (commun à la classe).'); return; }
+  const sel=[...document.querySelectorAll('.dchk')].filter(c=>c.checked).map(c=>window._DISC[+c.dataset.i]);
+  if(!sel.length){ alert('Aucun PC sélectionné.'); return; }
+  const text=sel.map(x=>[x.name,x.ip,'root',pwd,acc,'timetrack',x.dns].join('|')).join('\\n');
+  const r=await j('/api/settings/import-bulk',{method:'POST',body:JSON.stringify({text:text})});
+  alert('✅ '+r.added+' ajoutés · '+r.updated+' mis à jour'+(r.errors.length?(' · ⚠️ '+r.errors.length+' erreurs'):''));
+  load();
+}
+async function importBulk(){
+  const t=document.getElementById('bulktext').value;
+  const st=document.getElementById('bulkimpst'); st.textContent='⏳…';
+  const r=await j('/api/settings/import-bulk',{method:'POST',body:JSON.stringify({text:t})});
+  st.innerHTML='<span class=ok>✅ '+r.added+' ajoutés · '+r.updated+' maj</span>'+(r.errors.length?(' · <span class=bad>⚠️ '+r.errors.length+'</span> : '+r.errors.slice(0,3).join(' · ')):'');
+  if(r.added||r.updated){ document.getElementById('bulktext').value=''; load(); }
 }
 async function loadSet(){
   const L=await j('/api/settings'); window._SET=L;
@@ -1107,6 +1222,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, read_timelimit(m))
         if u.path == "/api/settings":
             return self._send(200, machines_public())
+        if u.path == "/api/discover":
+            return self._send(200, discover_agents())
         return self._send(404, "not found", "text/plain")
 
     def do_POST(self):
@@ -1203,6 +1320,12 @@ class Handler(BaseHTTPRequestHandler):
             except ValueError:
                 d = {}
             return self._send(200, delete_machine(d.get("name", "")))
+        if u.path == "/api/settings/import-bulk":
+            try:
+                d = json.loads(body or "{}")
+            except ValueError:
+                d = {}
+            return self._send(200, import_bulk(d.get("text", "")))
         return self._send(404, "not found", "text/plain")
 
 

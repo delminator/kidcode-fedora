@@ -262,6 +262,18 @@ fi
 systemctl enable --now avahi-daemon >/dev/null 2>&1 \
   && echo "    avahi actif → ce PC est joignable en  $(hostname).local" \
   || echo "    (avahi non démarré — le suivi par nom mDNS sera indispo)"
+# publie un service _kidcode._tcp → le tableau de bord peut DÉCOUVRIR ce PC
+if [ -d /etc/avahi/services ] || mkdir -p /etc/avahi/services 2>/dev/null; then
+  cat > /etc/avahi/services/kidcode.service <<'XML'
+<?xml version="1.0" standalone='no'?>
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<service-group>
+  <name replace-wildcards="yes">kidcode %h</name>
+  <service><type>_kidcode._tcp</type><port>22</port></service>
+</service-group>
+XML
+  echo "    service mDNS _kidcode._tcp publié (découverte par le tableau de bord)"
+fi
 
 # ---------------------------------------------------------------------------
 # 4. Conf kidtime : seed le compte enfant SANS limite (réglée via page parents).
