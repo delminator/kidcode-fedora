@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Lanceur direct depuis le dépôt (sans installation) : démarre le tableau de
+# bord et ouvre le navigateur. / Run directly from the repo, opens the browser.
+DIR="$(cd "$(dirname "$0")/.." && pwd)"
+exec python3 "$DIR/dashboard/kid-admin.py" --open "$@"

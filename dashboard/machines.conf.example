@@ -1,0 +1,25 @@
+# ─────────────────────────────────────────────────────────────────────────
+#  kidcode-fedora — liste des machines enfants  /  children machines list
+# ─────────────────────────────────────────────────────────────────────────
+#  Copiez ce fichier en « machines.conf » (sans .example) puis remplissez-le.
+#  Copy this file to "machines.conf" (no .example) then fill it in.
+#
+#  ⚠️  Ce fichier contient des MOTS DE PASSE. Il est gitignoré : ne le
+#      committez JAMAIS. / Contains PASSWORDS. It is gitignored: NEVER commit.
+#      Emplacement par défaut / default location:
+#         ~/.config/kid-admin/machines.conf   (chmod 600)
+#      Ou via la page Réglages du tableau de bord. / Or via the dashboard Settings page.
+#
+#  Format : nom|ip|user|password[|compte][|mode]
+#    nom      = nom affiché de la machine            / display name
+#    ip       = adresse IP                           / IP address
+#    user     = compte SSH admin (souvent root)      / SSH admin account (usually root)
+#    password = mot de passe SSH                     / SSH password
+#    compte   = compte de l'enfant si != nom         / child account if different from name
+#    mode     = "timetrack" (surveillance + quota)   / monitoring + time quota
+#               ou "lockdown" (console verrouillée)  / or locked-down console
+# ─────────────────────────────────────────────────────────────────────────
+
+# Exemples / examples — à remplacer / replace these:
+salon|192.168.1.50|root|CHANGE_ME|enfant1|timetrack
+chambre|192.168.1.51|root|CHANGE_ME|enfant2|timetrack

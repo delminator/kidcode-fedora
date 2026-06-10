@@ -1,0 +1,276 @@
+#!/usr/bin/env bash
+# kid-timetrack.sh <compte_enfant>
+# ---------------------------------------------------------------------------
+# Installeur LÉGER de surveillance + quota de temps pour le 2e PC de chaque
+# enfant (cf. mémoire kids-timetrack). Contrairement à kid-lockdown.sh, il NE
+# VERROUILLE RIEN : il ne touche ni sudo, ni la blacklist dnf, ni le boot
+# target, ni le compte de l'enfant. Il ajoute seulement :
+#   1. kidtime  : quota de temps (plage horaire + budget/jour) + coupe la
+#                 session en cours quand c'est dépassé (timer systemd, 1/min).
+#   2. un VERROU PAM au login (gdm) : l'enfant ne peut même pas OUVRIR sa
+#      session s'il est hors plage ou si son budget du jour est épuisé.
+#   3. logs d'activité : sessions (wtmp/last), commandes (psacct), et temps
+#      par application (échantillonnage par minute).
+#
+# Idempotent : relançable sans casse. Le quota se règle ensuite depuis la page
+# parents (kid-admin.py) ; par défaut AUCUNE limite.
+# À LANCER EN ROOT sur la machine enfant (ou via la page parents, à distance).
+# ---------------------------------------------------------------------------
+set -euo pipefail
+
+if [[ $EUID -ne 0 ]]; then
+  echo "ERREUR : à lancer en root (sudo $0 <compte_enfant>)." >&2
+  exit 1
+fi
+KID="${1:-}"
+if [[ -z "$KID" ]]; then
+  echo "ERREUR : indique le compte de l'enfant.  Ex : $0 alice" >&2
+  exit 1
+fi
+if ! id "$KID" >/dev/null 2>&1; then
+  echo "ERREUR : le compte '$KID' n'existe pas sur cette machine." >&2
+  exit 1
+fi
+echo "==> Installation surveillance + quota pour le compte : $KID"
+
+# ---------------------------------------------------------------------------
+# 1+3b. Gardien kidtime + échantillonneur de temps par appli (1×/minute).
+# ---------------------------------------------------------------------------
+echo "==> Pose du gardien kidtime (quota + temps par appli)"
+cat > /usr/local/bin/kidtime-enforce <<'KT'
+#!/usr/bin/bash
+# Applique /etc/kidtime.conf  (format : "user hstart hend budget_min").
+#   hstart=hend => pas de limite horaire ; budget 0 => pas de limite de durée.
+# Compte aussi le temps par application (logs), même sans limite.
+set -uo pipefail
+CONF=/etc/kidtime.conf; STATE=/var/lib/kidtime
+mkdir -p "$STATE" "$STATE/apps"
+[ -f "$CONF" ] || exit 0
+find "$STATE" -type f -mtime +30 -delete 2>/dev/null || true
+today=$(date +%Y%m%d); hour=$(date +%-H)
+
+# --- bannière GDM : état affiché AVANT le login, rafraîchi chaque minute ------
+prim=$(awk '$1 !~ /^#/ && NF>=4 {print $1; exit}' "$CONF")
+if [ -n "${prim:-}" ] && command -v dconf >/dev/null 2>&1; then
+  # échappe \ et " pour une valeur GVariant entre guillemets doubles, puis joint les lignes en \n
+  txt=$(/usr/local/bin/kidtime-status "$prim" 2>/dev/null | sed 's/\\/\\\\/g; s/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
+  bf=/etc/dconf/db/gdm.d/01-kidtime
+  newc="[org/gnome/login-screen]
+banner-message-enable=true
+banner-message-text=\"$txt\""
+  if [ "$(cat "$bf" 2>/dev/null)" != "$newc" ]; then
+    mkdir -p /etc/dconf/db/gdm.d
+    printf '%s\n' "$newc" > "$bf"
+    dconf update 2>/dev/null || true
+  fi
+fi
+
+while read -r user hstart hend budget _; do
+  [[ -z "${user:-}" || "$user" == \#* ]] && continue
+  # n'agir que sur les utilisateurs réellement connectés
+  loginctl list-sessions --no-legend 2>/dev/null | awk '{print $3}' | grep -qx "$user" || continue
+
+  # --- log : temps par application (minutes où l'appli est ouverte) ---------
+  af="$STATE/apps/$user.$today"
+  declare -A M=()
+  if [ -f "$af" ]; then while read -r k v; do M["$k"]="$v"; done < "$af"; fi
+  while read -r c; do
+    case "$c" in
+      ''|gnome-shell|gjs|gsd-*|tracker*|dbus|dbus-*|dbus-broker*|pipewire*|wireplumber|\
+      systemd|systemd-*|"(sd-pam)"|gvfs*|goa-*|gnome-session*|gdm*|Xwayland|pulseaudio|\
+      at-spi*|ibus*|ibus-*|xdg-*|evolution-*|fusermount*|sh|bash|zsh|ssh|sshd|kidtime-*|\
+      ps|sleep|sort|awk|grep|cat|wall|loginctl|find|gnome-keyring*|gcr-*|gjs-console) continue;;
+    esac
+    M["$c"]=$(( ${M["$c"]:-0} + 1 ))
+  done < <(ps -u "$user" -o comm= 2>/dev/null | sort -u)
+  : > "$af"; for k in "${!M[@]}"; do echo "$k ${M[$k]}"; done | sort -k2 -nr >> "$af"
+  unset M
+
+  # --- quota horaire --------------------------------------------------------
+  if [[ "${hstart:-0}" != "${hend:-0}" ]] && (( 10#${hour} < 10#${hstart} || 10#${hour} >= 10#${hend} )); then
+    echo "[kidtime] $user : hors plage autorisée (${hstart}h-${hend}h). Déconnexion dans 30 s." | wall 2>/dev/null
+    sleep 30; loginctl terminate-user "$user"; continue
+  fi
+  # --- quota de durée du jour ----------------------------------------------
+  if (( ${budget:-0} > 0 )); then
+    f="$STATE/$user.$today"; used=$(cat "$f" 2>/dev/null || echo 0); used=$((used+1)); echo "$used" > "$f"
+    left=$(( budget - used ))
+    if (( left <= 0 )); then
+      echo "[kidtime] $user : temps d'écran du jour écoulé (${budget} min). Déconnexion dans 30 s." | wall 2>/dev/null
+      sleep 30; loginctl terminate-user "$user"
+    elif (( left == 10 || left == 5 || left == 2 )); then
+      echo "[kidtime] $user : il te reste $left minutes aujourd'hui." | wall 2>/dev/null
+    fi
+  fi
+done < "$CONF"
+KT
+chown root:root /usr/local/bin/kidtime-enforce; chmod 0755 /usr/local/bin/kidtime-enforce
+
+cat > /etc/systemd/system/kidtime.service <<'KS'
+[Unit]
+Description=Gardien temps d'ecran enfants (kidtime)
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/kidtime-enforce
+KS
+cat > /etc/systemd/system/kidtime.timer <<'KTM'
+[Unit]
+Description=Lance kidtime chaque minute
+[Timer]
+OnBootSec=60
+OnUnitActiveSec=60
+AccuracySec=10s
+[Install]
+WantedBy=timers.target
+KTM
+
+# ---------------------------------------------------------------------------
+# 2. VERROU PAM au login : refuse l'OUVERTURE de session si plus de temps.
+#    Accroché sur gdm-password/gdm-autologin (NON gérés par authselect, donc
+#    pas écrasés). FAIL-OPEN : en cas de doute on AUTORISE (jamais de lock-out).
+# ---------------------------------------------------------------------------
+echo "==> Pose du verrou de login (gate PAM)"
+# Helper partagé : imprime un état lisible (heure, plage, compte à rebours, reste).
+# Utilisé par le gate (message pam_echo) ET par la bannière GDM (avant login).
+cat > /usr/local/bin/kidtime-status <<'ST'
+#!/usr/bin/bash
+user="${1:-}"; [ -z "$user" ] && exit 0
+CONF=/etc/kidtime.conf
+line=$(grep -E "^[[:space:]]*${user}[[:space:]]" "$CONF" 2>/dev/null | head -1)
+[ -z "$line" ] && exit 0
+read -r u hstart hend budget _ <<< "$line"
+now=$(date +%H:%M); h=$(date +%-H); m=$(date +%-M); today=$(date +%Y%m%d)
+nowmin=$(( 10#$h*60 + 10#$m ))
+echo "🕐  Il est ${now}"
+# verrou manuel total (convention "23 1")
+if [ "$hstart" = "23" ] && [ "$hend" = "1" ]; then
+  echo "🔒  VERROUILLÉ JUSQU'À NOUVEL ORDRE"
+  echo "     Demande à Papa ou Maman pour déverrouiller."
+  exit 0
+fi
+# plage horaire
+if [ "${hstart:-0}" != "${hend:-0}" ]; then
+  echo "📅  Heures autorisées : ${hstart}h → ${hend}h"
+  if (( 10#$h < 10#${hstart} || 10#$h >= 10#${hend} )); then
+    startmin=$(( 10#$hstart*60 ))
+    if (( nowmin < startmin )); then diff=$(( startmin - nowmin )); else diff=$(( 1440 - nowmin + startmin )); fi
+    echo "⏳  Prochaine session dans $(( diff/60 ))h$(printf '%02d' $(( diff%60 )))"
+  else
+    echo "✅  C'est l'heure de jouer !"
+  fi
+else
+  echo "📅  Aucune restriction d'heure"
+fi
+# budget du jour + jauge
+if (( ${budget:-0} > 0 )); then
+  used=$(cat "/var/lib/kidtime/${user}.${today}" 2>/dev/null || echo 0)
+  left=$(( budget - used )); (( left < 0 )) && left=0
+  seg=16; filled=$(( left*seg/budget )); (( filled>seg )) && filled=seg; (( filled<0 )) && filled=0
+  bar=""; i=0; while (( i<filled )); do bar+="█"; ((i++)); done; while (( i<seg )); do bar+="░"; ((i++)); done
+  echo "⌛  Temps restant aujourd'hui : ${left} / ${budget} min"
+  echo "     [${bar}]"
+fi
+exit 0
+ST
+chown root:root /usr/local/bin/kidtime-status; chmod 0755 /usr/local/bin/kidtime-status
+
+cat > /usr/local/bin/kidtime-gate <<'GT'
+#!/usr/bin/bash
+# Verrou de login : refuse l'ouverture quand l'enfant n'a plus de temps et écrit
+# un message clair (titre + état détaillé via kidtime-status) dans
+# /run/kidtime-deny.txt (affiché par pam_echo sur l'écran GDM).
+# FAIL-OPEN STRICT : exit 1 (refus) seulement si on est certain.
+MSG=/run/kidtime-deny.txt
+user="${PAM_USER:-}"
+[ -z "$user" ] && exit 0
+[ "$user" = "root" ] && exit 0
+CONF=/etc/kidtime.conf
+[ -f "$CONF" ] || exit 0
+line=$(grep -E "^[[:space:]]*${user}[[:space:]]" "$CONF" 2>/dev/null | head -1) || exit 0
+[ -z "$line" ] && exit 0
+read -r u hstart hend budget _ <<< "$line"
+hour=$(date +%-H 2>/dev/null) || exit 0
+today=$(date +%Y%m%d 2>/dev/null) || exit 0
+
+deny() {
+  { echo "$1"; echo "──────────────────────────────"; /usr/local/bin/kidtime-status "$user"; } > "$MSG" 2>/dev/null
+  chmod 0644 "$MSG" 2>/dev/null
+  exit 1
+}
+
+if [ "${hstart:-0}" != "${hend:-0}" ]; then
+  if (( 10#${hour} < 10#${hstart:-0} || 10#${hour} >= 10#${hend:-0} )); then
+    if [ "${hstart}" = "23" ] && [ "${hend}" = "1" ]; then
+      deny "🔒🔒   PRIVÉ DE PC   🔒🔒"
+    else
+      deny "⛔   CE N'EST PAS L'HEURE   ⛔"
+    fi
+  fi
+fi
+if (( ${budget:-0} > 0 )); then
+  used=$(cat "/var/lib/kidtime/${user}.${today}" 2>/dev/null || echo 0)
+  if (( used >= budget )); then
+    deny "⛔   PLUS DE TEMPS AUJOURD'HUI   ⛔"
+  fi
+fi
+rm -f "$MSG" 2>/dev/null
+exit 0
+GT
+chown root:root /usr/local/bin/kidtime-gate; chmod 0755 /usr/local/bin/kidtime-gate
+
+# Accroche en phase AUTH (GDM affiche les messages PAM de cette phase) :
+#   1) le gate ; s'il AUTORISE (exit 0) on saute les 2 lignes suivantes,
+#   2) sinon pam_echo affiche /run/kidtime-deny.txt,
+#   3) puis pam_deny refuse l'auth -> message clair + login bloqué.
+# Idempotent : on repart toujours de la sauvegarde .kidtime.bak (= original).
+L1='auth    [success=2 default=ignore] pam_exec.so quiet /usr/local/bin/kidtime-gate # kidtime-gate'
+L2='auth    optional      pam_echo.so file=/run/kidtime-deny.txt # kidtime-gate'
+L3='auth    requisite     pam_deny.so # kidtime-gate'
+for pf in /etc/pam.d/gdm-password /etc/pam.d/gdm-autologin; do
+  [ -f "$pf" ] || continue
+  if [ -f "$pf.kidtime.bak" ]; then
+    cp -a "$pf.kidtime.bak" "$pf"          # restaure l'original avant de (re)patcher
+  else
+    cp -a "$pf" "$pf.kidtime.bak"          # 1re fois : sauvegarde l'original
+  fi
+  awk -v a="$L1" -v b="$L2" -v c="$L3" '
+    !done && /^auth/ { print a; print b; print c; done=1 }
+    { print }
+    END { if (!done) { print a; print b; print c } }
+  ' "$pf.kidtime.bak" > "$pf"
+  echo "    $pf : verrou auth + message ajouté (sauvegarde $pf.kidtime.bak)"
+done
+
+# ---------------------------------------------------------------------------
+# 3a. Logs d'activité : process accounting (commandes) + sessions (wtmp natif).
+# ---------------------------------------------------------------------------
+echo "==> Activation des logs (psacct : commandes + temps de connexion)"
+if ! rpm -q psacct >/dev/null 2>&1; then
+  dnf install -y psacct >/dev/null 2>&1 || echo "    (psacct non installé : pas de réseau ? logs de commandes indispo)"
+fi
+systemctl enable --now psacct >/dev/null 2>&1 && echo "    psacct actif (lastcomm/sa/ac)" \
+  || echo "    (psacct non démarré)"
+
+# ---------------------------------------------------------------------------
+# 4. Conf kidtime : seed le compte enfant SANS limite (réglée via page parents).
+# ---------------------------------------------------------------------------
+touch /etc/kidtime.conf; chmod 0644 /etc/kidtime.conf
+if ! grep -qE "^[[:space:]]*${KID}[[:space:]]" /etc/kidtime.conf; then
+  echo "$KID 0 0 0   # hstart hend budget_min (0 0 0 = aucune limite)" >> /etc/kidtime.conf
+fi
+
+systemctl daemon-reload
+systemctl enable --now kidtime.timer >/dev/null 2>&1
+
+echo
+echo "============================================================"
+echo " Surveillance + quota installés ✅  (compte : $KID)"
+echo "------------------------------------------------------------"
+echo " - kidtime.timer actif (vérif chaque minute)"
+echo " - verrou de login GDM en place (impossible d'ouvrir hors temps)"
+echo " - logs : last (sessions), lastcomm/sa/ac (commandes),"
+echo "          /var/lib/kidtime/apps/$KID.<date> (temps par appli)"
+echo " - quota par défaut : AUCUNE limite -> à régler depuis la page parents"
+echo " RIEN d'autre n'est verrouillé : le bureau et le compte enfant"
+echo " restent libres et inchangés."
+echo "============================================================"

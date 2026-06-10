@@ -1,0 +1,22 @@
+# ── Secrets : NE JAMAIS committer / NEVER commit ──────────────────────────
+# Le fichier de config contient les mots de passe root et les IP des machines.
+# The config file holds root passwords and machine IPs.
+machines.conf
+**/machines.conf
+*.key
+*.pem
+*.env
+.env
+secrets/
+
+# ── Python ────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# ── Génération locale / local build artifacts ─────────────────────────────
+*.pdf
+*.log
+.DS_Store

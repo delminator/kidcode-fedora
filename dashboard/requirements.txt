@@ -1,0 +1,3 @@
+# kidcode-fedora dashboard — Python dependencies
+# Install: pip install -r requirements.txt
+paramiko>=3.0

@@ -1,0 +1,1689 @@
+#!/usr/bin/env python3
+"""Génère les guides imprimables personnalisés (un par enfant).
+Chaque défi est découpé en ÉTAPES progressives (vraie courbe d'apprentissage).
+Tous les bouts de code sont vérifiés (compile) avant génération.
+Usage : python3 gen-tuto.py
+"""
+import html
+NIVEAU = '''NIVEAU = [
+ "..............................",
+ ".....$........H...........$...",
+ "XXXXXXXXXX....H....XXXXXXXXXXXX",
+ ".........X....H...........X....",
+ ".....$...X....H.......$...X....",
+ ".........XXXXXXXXXXXXXXXXXXX...",
+ "..............................",
+ "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+]'''
+
+# Chaque entrée = un bout de code complet et exécutable.
+CODES = {}
+
+# ---------- DÉMOSCENE ----------
+CODES["plasma_1"] = r'''print("\033[48;5;201m        \033[0m")   # un carre ROSE
+print("\033[48;5;46m        \033[0m")    # un carre VERT
+print("\033[48;5;21m        \033[0m")    # un carre BLEU
+'''
+CODES["plasma_2"] = r'''ligne = ""
+for x in range(30):
+    ligne += f"\033[48;5;{16 + x}m "     # une couleur differente a chaque pas
+print(ligne + "\033[0m")
+'''
+CODES["plasma_3"] = r'''for y in range(20):              # 20 lignes
+    ligne = ""
+    for x in range(50):          # 50 colonnes
+        couleur = 16 + (x + y) % 200
+        ligne += f"\033[48;5;{couleur}m "
+    print(ligne + "\033[0m")
+'''
+CODES["plasma_4"] = r'''import math
+for y in range(20):
+    ligne = ""
+    for x in range(50):
+        v = math.sin(x * 0.3) + math.sin(y * 0.3)   # des vagues !
+        couleur = 16 + int((v + 2) / 4 * 200)
+        ligne += f"\033[48;5;{couleur}m "
+    print(ligne + "\033[0m")
+'''
+CODES["plasma_5"] = r'''import math, time, shutil
+cols, rows = shutil.get_terminal_size(); rows -= 1
+print("\033[?25l", end="")              # cache le curseur
+t = 0
+try:
+    while True:
+        print("\033[H", end="")         # curseur tout en haut
+        for y in range(rows):
+            ligne = ""
+            for x in range(cols):
+                v = math.sin(x*0.1+t) + math.sin(y*0.1-t) + math.sin((x+y)*0.08+t)
+                couleur = 16 + int((v+3)/6*215)
+                ligne += f"\033[48;5;{couleur}m "
+            print(ligne + "\033[0m")
+        t += 0.2                         # le temps avance -> ca bouge
+        time.sleep(0.05)
+except KeyboardInterrupt:
+    print("\033[0m\033[?25h")            # remontre le curseur
+'''
+
+# ---------- MUSIQUE ----------
+CODES["music_1"] = r'''import numpy as np, sounddevice as sd
+SR = 44100                              # qualite du son
+duree = 0.5
+t = np.linspace(0, duree, int(SR*duree), False)
+son = 0.3 * np.sin(2*np.pi*440*t)       # 440 Hz = la note "la"
+sd.play(son.astype(np.float32), SR); sd.wait()
+print("Tu as entendu un 'la' !")
+'''
+CODES["music_2"] = r'''import numpy as np, sounddevice as sd
+SR = 44100
+def note(freq, duree=0.4):              # une fonction qui fabrique une note
+    t = np.linspace(0, duree, int(SR*duree), False)
+    return 0.3 * np.sin(2*np.pi*freq*t)
+son = np.concatenate([note(262), note(330), note(392)])   # do, mi, sol
+sd.play(son.astype(np.float32), SR); sd.wait()
+'''
+CODES["music_3"] = r'''import numpy as np, sounddevice as sd
+SR = 44100
+def note(freq, duree=0.4):
+    t = np.linspace(0, duree, int(SR*duree), False)
+    return 0.3 * np.sin(2*np.pi*freq*t)
+notes = {"do":262,"re":294,"mi":330,"fa":349,"sol":392,"la":440,"si":494}
+melodie = ["do","re","mi","fa","sol","la","si"]      # <- ta partition !
+son = np.concatenate([note(notes[n]) for n in melodie]).astype(np.float32)
+sd.play(son, SR); sd.wait()
+print("A toi de changer la melodie !")
+'''
+
+# ---------- SNAKE ----------
+CODES["snake_1"] = r'''import curses
+def main(stdscr):
+    stdscr.addstr(5, 5, "Salut ! Appuie sur une touche.")
+    stdscr.getch()
+curses.wrapper(main)
+'''
+CODES["snake_2"] = r'''import curses
+def main(stdscr):
+    curses.curs_set(0); stdscr.nodelay(True); stdscr.timeout(120)
+    h, w = stdscr.getmaxyx()
+    y, x = h//2, w//2
+    dy, dx = 0, 1
+    while True:
+        k = stdscr.getch()
+        if k == ord('q'): break
+        if k == curses.KEY_UP: dy, dx = -1, 0
+        elif k == curses.KEY_DOWN: dy, dx = 1, 0
+        elif k == curses.KEY_LEFT: dy, dx = 0, -1
+        elif k == curses.KEY_RIGHT: dy, dx = 0, 1
+        y = max(0, min(h-1, y+dy)); x = max(0, min(w-2, x+dx))
+        stdscr.clear(); stdscr.addstr(y, x, "#"); stdscr.refresh()
+curses.wrapper(main)
+'''
+CODES["snake_3"] = r'''import curses
+def main(stdscr):
+    curses.curs_set(0); stdscr.nodelay(True); stdscr.timeout(120)
+    h, w = stdscr.getmaxyx()
+    serpent = [(h//2, w//2 - i) for i in range(3)]    # 3 segments
+    dy, dx = 0, 1
+    while True:
+        k = stdscr.getch()
+        if k == ord('q'): break
+        if k == curses.KEY_UP and dy == 0: dy, dx = -1, 0
+        elif k == curses.KEY_DOWN and dy == 0: dy, dx = 1, 0
+        elif k == curses.KEY_LEFT and dx == 0: dy, dx = 0, -1
+        elif k == curses.KEY_RIGHT and dx == 0: dy, dx = 0, 1
+        ty, tx = serpent[0][0]+dy, serpent[0][1]+dx
+        serpent.insert(0, (ty, tx))      # nouvelle tete
+        serpent.pop()                    # on enleve la queue
+        try:
+            stdscr.clear()
+            for (yy, xx) in serpent: stdscr.addstr(yy, xx, "#")
+        except curses.error: pass
+        stdscr.refresh()
+curses.wrapper(main)
+'''
+CODES["snake_4"] = r'''import curses, random
+def main(stdscr):
+    curses.curs_set(0); stdscr.nodelay(True); stdscr.timeout(120)
+    h, w = stdscr.getmaxyx()
+    serpent = [(h//2, w//2 - i) for i in range(3)]
+    dy, dx = 0, 1
+    pomme = (random.randint(1, h-2), random.randint(1, w-2))
+    score = 0
+    while True:
+        k = stdscr.getch()
+        if k == ord('q'): break
+        if k == curses.KEY_UP and dy == 0: dy, dx = -1, 0
+        elif k == curses.KEY_DOWN and dy == 0: dy, dx = 1, 0
+        elif k == curses.KEY_LEFT and dx == 0: dy, dx = 0, -1
+        elif k == curses.KEY_RIGHT and dx == 0: dy, dx = 0, 1
+        ty, tx = serpent[0][0]+dy, serpent[0][1]+dx
+        serpent.insert(0, (ty, tx))
+        if (ty, tx) == pomme:                 # il mange -> il grandit
+            score += 1
+            pomme = (random.randint(1, h-2), random.randint(1, w-2))
+        else:
+            serpent.pop()
+        try:
+            stdscr.clear(); stdscr.border()
+            stdscr.addstr(0, 2, f" Score: {score} ")
+            stdscr.addstr(pomme[0], pomme[1], "*")
+            for (yy, xx) in serpent: stdscr.addstr(yy, xx, "#")
+        except curses.error: pass
+        stdscr.refresh()
+curses.wrapper(main)
+'''
+CODES["snake_5"] = r'''import curses, random
+def main(stdscr):
+    curses.curs_set(0); stdscr.nodelay(True); stdscr.timeout(120)
+    h, w = stdscr.getmaxyx()
+    serpent = [(h//2, w//2 - i) for i in range(3)]
+    dy, dx = 0, 1
+    pomme = (random.randint(1, h-2), random.randint(1, w-2))
+    score = 0
+    while True:
+        k = stdscr.getch()
+        if k == ord('q'): break
+        if k == curses.KEY_UP and dy == 0: dy, dx = -1, 0
+        elif k == curses.KEY_DOWN and dy == 0: dy, dx = 1, 0
+        elif k == curses.KEY_LEFT and dx == 0: dy, dx = 0, -1
+        elif k == curses.KEY_RIGHT and dx == 0: dy, dx = 0, 1
+        ty, tx = serpent[0][0]+dy, serpent[0][1]+dx
+        # PERDU si on touche un mur ou son propre corps
+        if ty in (0, h-1) or tx in (0, w-1) or (ty, tx) in serpent:
+            break
+        serpent.insert(0, (ty, tx))
+        if (ty, tx) == pomme:
+            score += 1
+            pomme = (random.randint(1, h-2), random.randint(1, w-2))
+        else:
+            serpent.pop()
+        stdscr.clear(); stdscr.border()
+        stdscr.addstr(0, 2, f" Score: {score}  (q pour quitter) ")
+        stdscr.addstr(pomme[0], pomme[1], "*")
+        for (yy, xx) in serpent: stdscr.addstr(yy, xx, "#")
+        stdscr.refresh()
+    stdscr.nodelay(False); stdscr.clear()
+    stdscr.addstr(h//2, max(0, w//2-7), f"Perdu ! Score {score}")
+    stdscr.refresh(); stdscr.getch()
+curses.wrapper(main)
+'''
+
+# ---------- CASSE-BRIQUE ----------
+CODES["brick_1"] = r'''import curses
+def main(stdscr):
+    curses.curs_set(0); stdscr.nodelay(True); stdscr.timeout(60)
+    h, w = stdscr.getmaxyx()
+    rx, rw = w//2, 8                     # raquette : position, largeur
+    while True:
+        k = stdscr.getch()
+        if k == ord('q'): break
+        if k == curses.KEY_LEFT: rx = max(1, rx-2)
+        elif k == curses.KEY_RIGHT: rx = min(w-rw-1, rx+2)
+        stdscr.clear(); stdscr.border()
+        stdscr.addstr(h-2, rx, "=" * rw)
+        stdscr.refresh()
+curses.wrapper(main)
+'''
+CODES["brick_2"] = r'''import curses
+def main(stdscr):
+    curses.curs_set(0); stdscr.nodelay(True); stdscr.timeout(60)
+    h, w = stdscr.getmaxyx()
+    rx, rw = w//2, 8
+    bx, by, ddx, ddy = w//2, h-3, 1, -1     # balle : position + direction
+    while True:
+        k = stdscr.getch()
+        if k == ord('q'): break
+        if k == curses.KEY_LEFT: rx = max(1, rx-2)
+        elif k == curses.KEY_RIGHT: rx = min(w-rw-1, rx+2)
+        bx += ddx; by += ddy
+        if bx <= 1 or bx >= w-2: ddx = -ddx       # rebond murs gauche/droite
+        if by <= 1: ddy = -ddy                    # rebond plafond
+        if by == h-2 and rx <= bx <= rx+rw: ddy = -1   # rebond raquette
+        if by >= h-1: break                       # balle perdue
+        try:
+            stdscr.clear(); stdscr.border()
+            stdscr.addstr(h-2, rx, "=" * rw)
+            stdscr.addch(by, bx, "O")
+        except curses.error: pass
+        stdscr.refresh()
+    stdscr.nodelay(False)
+    stdscr.addstr(h//2, max(0, w//2-4), "Perdu !"); stdscr.getch()
+curses.wrapper(main)
+'''
+CODES["brick_3"] = r'''import curses
+def main(stdscr):
+    curses.curs_set(0); stdscr.nodelay(True); stdscr.timeout(60)
+    h, w = stdscr.getmaxyx()
+    briques = set()
+    for by in range(2, 5):
+        for bx in range(2, w-3, 4): briques.add((by, bx))
+    rx, rw = w//2, 8
+    bx, by, ddx, ddy = w//2, h-3, 1, -1
+    score = 0
+    while True:
+        k = stdscr.getch()
+        if k == ord('q'): break
+        if k == curses.KEY_LEFT: rx = max(1, rx-2)
+        elif k == curses.KEY_RIGHT: rx = min(w-rw-1, rx+2)
+        bx += ddx; by += ddy
+        if bx <= 1 or bx >= w-2: ddx = -ddx
+        if by <= 1: ddy = -ddy
+        if by == h-2 and rx <= bx <= rx+rw: ddy = -1
+        if by >= h-1: break
+        for cible in ((by, bx), (by, bx-1)):       # brique touchee ?
+            if cible in briques:
+                briques.discard(cible); ddy = -ddy; score += 1; break
+        try:
+            stdscr.clear(); stdscr.border()
+            stdscr.addstr(0, 2, f" Score: {score}  briques: {len(briques)} (q) ")
+            for (yy, xx) in briques: stdscr.addstr(yy, xx, "[]")
+            stdscr.addstr(h-2, rx, "=" * rw)
+            stdscr.addch(by, bx, "O")
+        except curses.error: pass
+        if not briques:
+            stdscr.addstr(h//2, max(0, w//2-4), "GAGNE !"); stdscr.refresh(); break
+        stdscr.refresh()
+    stdscr.nodelay(False); stdscr.getch()
+curses.wrapper(main)
+'''
+
+# ---------- LODE RUNNER ----------
+CODES["lode_1"] = NIVEAU + r'''
+import curses
+def case(g, y, x):
+    return g[y][x] if 0 <= y < len(g) and 0 <= x < len(g[0]) else 'X'
+def main(stdscr):
+    curses.curs_set(0); stdscr.nodelay(True); stdscr.timeout(120)
+    g = [list(r) for r in NIVEAU]; py, px = 1, 1
+    while True:
+        k = stdscr.getch()
+        if k == ord('q'): break
+        ny, nx = py, px
+        if k == curses.KEY_LEFT: nx -= 1
+        elif k == curses.KEY_RIGHT: nx += 1
+        elif k == curses.KEY_UP: ny -= 1
+        elif k == curses.KEY_DOWN: ny += 1
+        if case(g, ny, nx) != 'X': py, px = ny, nx     # on ne traverse pas les murs
+        try:
+            stdscr.clear()
+            for y, row in enumerate(g): stdscr.addstr(y, 0, "".join(row))
+            stdscr.addch(py, px, '@')
+        except curses.error: pass
+        stdscr.refresh()
+curses.wrapper(main)
+'''
+CODES["lode_2"] = NIVEAU + r'''
+import curses
+def case(g, y, x):
+    return g[y][x] if 0 <= y < len(g) and 0 <= x < len(g[0]) else 'X'
+def main(stdscr):
+    curses.curs_set(0); stdscr.nodelay(True); stdscr.timeout(120)
+    g = [list(r) for r in NIVEAU]; py, px = 1, 1; score = 0
+    while True:
+        k = stdscr.getch()
+        if k == ord('q'): break
+        ny, nx = py, px
+        if k == curses.KEY_LEFT: nx -= 1
+        elif k == curses.KEY_RIGHT: nx += 1
+        elif k == curses.KEY_UP and case(g, py, px) == 'H': ny -= 1   # grimper l'echelle
+        elif k == curses.KEY_DOWN: ny += 1
+        if case(g, ny, nx) != 'X': py, px = ny, nx
+        # GRAVITE : on tombe s'il n'y a rien sous nos pieds (et pas d'echelle)
+        if case(g, py+1, px) not in ('X', 'H') and case(g, py, px) != 'H':
+            py += 1
+        if g[py][px] == '$': g[py][px] = '.'; score += 1   # ramasser l'or
+        try:
+            stdscr.clear()
+            for y, row in enumerate(g): stdscr.addstr(y, 0, "".join(row))
+            stdscr.addch(py, px, '@')
+            stdscr.addstr(len(g)+1, 0, f"Or: {score}/4   (q pour quitter)")
+        except curses.error: pass
+        stdscr.refresh()
+        if score >= 4:
+            stdscr.addstr(len(g)//2, 5, "GAGNE !"); stdscr.refresh(); stdscr.getch(); break
+curses.wrapper(main)
+'''
+
+
+# Explications "ce que fait le code" pour chaque étape (HTML, affiché sous le code).
+EXPL = {
+"plasma_1": "<li><code>print(...)</code> affiche quelque chose à l'écran.</li>"
+            "<li><code>\\033[48;5;201m</code> = code secret « fond couleur n°201 ».</li>"
+            "<li><code>\\033[0m</code> remet la couleur normale (sinon tout reste coloré).</li>",
+"plasma_2": "<li><code>for x in range(30)</code> répète 30 fois (x = 0,1,2…29).</li>"
+            "<li>À chaque tour on ajoute un espace coloré ; la couleur <code>16+x</code> change donc à chaque colonne.</li>"
+            "<li>On affiche la ligne entière à la fin.</li>",
+"plasma_3": "<li>La boucle <code>for y</code> parcourt les lignes, <code>for x</code> les colonnes : une grille !</li>"
+            "<li><code>(x+y) % 200</code> donne un nombre qui change selon la position → un dégradé en diagonale.</li>"
+            "<li><code>%</code> = le reste d'une division (ici, entre 0 et 199).</li>",
+"plasma_4": "<li><code>math.sin(...)</code> est une fonction « vague » qui monte et descend.</li>"
+            "<li>On additionne une vague sur x et une sur y → des ondulations.</li>"
+            "<li><code>int(...)</code> arrondit en nombre entier pour choisir la couleur.</li>",
+"plasma_5": "<li><code>while True:</code> = boucle sans fin : le cœur de l'animation.</li>"
+            "<li><code>\\033[H</code> remet le curseur en haut pour redessiner par-dessus → effet animé.</li>"
+            "<li><code>t += 0.2</code> fait avancer le « temps » → les vagues se déplacent ; <code>time.sleep</code> attend entre 2 images.</li>"
+            "<li><code>except KeyboardInterrupt</code> = sortir proprement avec Ctrl+C.</li>",
+"music_1": "<li><code>np.linspace</code> crée plein de petits instants (les « échantillons » du son).</li>"
+           "<li><code>np.sin(2*np.pi*440*t)</code> = une onde à 440 vibrations/seconde = la note « la ».</li>"
+           "<li><code>sd.play</code> joue le son, <code>sd.wait</code> attend qu'il finisse.</li>",
+"music_2": "<li><code>def note(freq)</code> crée une <b>fonction</b> réutilisable qui fabrique une note.</li>"
+           "<li><code>np.concatenate([...])</code> met plusieurs notes bout à bout.</li>"
+           "<li>262, 330, 392 = les fréquences de do, mi, sol.</li>",
+"music_3": "<li><code>notes = {...}</code> = un <b>dictionnaire</b> : chaque nom de note → sa fréquence.</li>"
+           "<li><code>melodie = [...]</code> = la liste des notes à jouer, dans l'ordre.</li>"
+           "<li><code>[note(notes[n]) for n in melodie]</code> fabrique le son de chaque note de la liste.</li>",
+"snake_1": "<li><code>curses.wrapper(main)</code> prépare l'écran « jeu » puis lance <code>main</code>.</li>"
+           "<li><code>addstr(ligne, colonne, texte)</code> écrit à un endroit précis.</li>"
+           "<li><code>getch()</code> attend que tu appuies sur une touche.</li>",
+"snake_2": "<li><code>nodelay(True)</code> + <code>timeout(120)</code> : le jeu n'attend pas, il avance tout seul toutes les 120 ms.</li>"
+           "<li>Les flèches changent la direction <code>dy, dx</code>.</li>"
+           "<li><code>y += dy</code> déplace le point ; <code>clear()</code> efface avant de redessiner ; <code>max/min</code> l'empêchent de sortir de l'écran.</li>",
+"snake_3": "<li><code>serpent</code> = une liste de cases (la tête est en premier).</li>"
+           "<li><code>insert(0, …)</code> ajoute une nouvelle tête, <code>pop()</code> enlève la queue → il avance.</li>"
+           "<li><code>and dy == 0</code> empêche de faire demi-tour sur soi-même.</li>",
+"snake_4": "<li><code>random.randint</code> place la pomme au hasard.</li>"
+           "<li>Si la tête arrive sur la pomme : +1 au score et on NE retire PAS la queue → le serpent grandit.</li>"
+           "<li><code>border()</code> dessine le cadre, le score s'affiche en haut.</li>",
+"snake_5": "<li><code>if ty in (0, h-1) …</code> teste si on touche un mur ou son propre corps → <code>break</code> (fin).</li>"
+           "<li>Après la boucle, on affiche « Perdu ! » et on attend une touche.</li>",
+"brick_1": "<li><code>rx</code> = position de la raquette, <code>rw</code> = sa largeur.</li>"
+           "<li>Les flèches changent <code>rx</code> ; <code>max/min</code> l'empêchent de sortir.</li>"
+           "<li><code>\"=\" * rw</code> dessine la raquette (rw fois le signe =).</li>",
+"brick_2": "<li><code>bx, by</code> = position de la balle ; <code>ddx, ddy</code> = sa direction.</li>"
+           "<li><code>ddx = -ddx</code> inverse la direction quand elle touche un mur → rebond.</li>"
+           "<li>Sur la raquette elle remonte ; si elle passe en bas → <code>break</code> (perdu).</li>",
+"brick_3": "<li><code>briques</code> = un ensemble de positions à casser.</li>"
+           "<li>Quand la balle touche une brique : on l'enlève (<code>discard</code>), elle rebondit, +1 au score.</li>"
+           "<li><code>if not briques:</code> → toutes cassées → gagné !</li>",
+"lode_1": "<li><code>NIVEAU</code> = la carte en lettres (X=mur, H=échelle, $=or, .=vide).</li>"
+          "<li><code>case(g,y,x)</code> regarde ce qu'il y a à un endroit (mur en dehors de la carte).</li>"
+          "<li>On bouge seulement si la case visée n'est pas un mur <code>X</code>.</li>",
+"lode_2": "<li>La <b>gravité</b> : s'il n'y a ni sol ni échelle sous les pieds, on tombe (<code>py += 1</code>).</li>"
+          "<li>La flèche Haut ne marche que sur une échelle <code>H</code>.</li>"
+          "<li><code>if g[py][px] == '$'</code> : on ramasse l'or et on le remplace par du vide.</li>",
+"cave_1": "<li><code>random.random() &lt; 0.45</code> → 45% de chances d'être de la roche.</li>"
+          "<li>La grille est un tableau de 1 (roche) et 0 (vide).</li>"
+          "<li>On affiche <code>#</code> pour la roche, un espace pour le vide.</li>",
+"cave_2": "<li>Pour chaque case, on compte ses voisines qui sont de la roche.</li>"
+          "<li>5 voisines-roche ou plus → la case devient roche, sinon elle devient vide.</li>"
+          "<li>Répété 5 fois, ça « creuse » de vraies cavernes : c'est un <b>automate cellulaire</b> !</li>",
+"cave_3": "<li><code>generer()</code> fabrique une nouvelle grotte à chaque lancement.</li>"
+          "<li>On cherche une case vide pour y poser l'explorateur <code>@</code>.</li>"
+          "<li>On se déplace seulement si la case d'arrivée est vide (pas de la roche).</li>",
+}
+
+
+CODES["cave_1"] = r'''import random
+L, H = 50, 18
+grille = [[1 if random.random() < 0.45 else 0 for _ in range(L)] for _ in range(H)]
+for ligne in grille:
+    print("".join("#" if c else " " for c in ligne))
+'''
+CODES["cave_2"] = r'''import random
+L, H = 50, 18
+grille = [[1 if random.random() < 0.45 else 0 for _ in range(L)] for _ in range(H)]
+for _ in range(5):                          # 5 passes de lissage
+    neuf = [[0]*L for _ in range(H)]
+    for y in range(H):
+        for x in range(L):
+            murs = sum(
+                not (0 <= y+dy < H and 0 <= x+dx < L) or grille[y+dy][x+dx] == 1
+                for dy in (-1,0,1) for dx in (-1,0,1))
+            neuf[y][x] = 1 if murs >= 5 else 0
+    grille = neuf
+for ligne in grille:
+    print("".join("#" if c else " " for c in ligne))
+'''
+CODES["cave_3"] = r'''import curses, random
+L, H = 50, 18
+def generer():
+    g = [[1 if random.random() < 0.45 else 0 for _ in range(L)] for _ in range(H)]
+    for _ in range(5):
+        n = [[0]*L for _ in range(H)]
+        for y in range(H):
+            for x in range(L):
+                murs = sum(not (0 <= y+dy < H and 0 <= x+dx < L) or g[y+dy][x+dx] == 1
+                           for dy in (-1,0,1) for dx in (-1,0,1))
+                n[y][x] = 1 if murs >= 5 else 0
+        g = n
+    return g
+def main(stdscr):
+    curses.curs_set(0); stdscr.nodelay(True); stdscr.timeout(120)
+    g = generer()
+    py, px = 1, 1
+    for y in range(H):                       # trouve une case vide pour demarrer
+        for x in range(L):
+            if g[y][x] == 0: py, px = y, x; break
+        else: continue
+        break
+    while True:
+        k = stdscr.getch()
+        if k == ord('q'): break
+        ny, nx = py, px
+        if k == curses.KEY_UP: ny -= 1
+        elif k == curses.KEY_DOWN: ny += 1
+        elif k == curses.KEY_LEFT: nx -= 1
+        elif k == curses.KEY_RIGHT: nx += 1
+        if 0 <= ny < H and 0 <= nx < L and g[ny][nx] == 0:
+            py, px = ny, nx
+        try:
+            stdscr.clear()
+            for y, row in enumerate(g):
+                stdscr.addstr(y, 0, "".join("#" if c else " " for c in row))
+            stdscr.addch(py, px, '@')
+            stdscr.addstr(H, 0, "Explore ta grotte !  (q pour quitter)")
+        except curses.error: pass
+        stdscr.refresh()
+curses.wrapper(main)
+'''
+
+CODES["lode_level"] = r'''NIVEAU = [
+ "........................",
+ "..$.....................",
+ "XXXXXXX....H............",
+ "...........H....$.......",
+ "....$......H..XXXXXXX...",
+ "XXXXXXXXXXXX............",
+ "..............H.........",
+ ".....$........H....$....",
+ "XXXXXXXXXXXXXXXXXXXXXXXX",
+]'''
+
+
+def C(key):
+    """Code échappé pour insertion dans <pre>."""
+    return html.escape(CODES[key])
+
+
+TEMPLATE = r'''<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<title>Le guide de %%NAME%%</title>
+<style>
+  @page { size: A4; margin: 15mm; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body{ font:15px/1.6 "Segoe UI",system-ui,sans-serif; color:#1a1a1a; max-width:820px;
+        margin:0 auto; padding:20px; background:#fff; }
+  h1{ font-size:28px; color:#1f5fb0; margin:.3em 0; }
+  h2{ font-size:21px; color:#1f5fb0; margin-top:1.3em; border-bottom:3px solid #cfe0f5; padding-bottom:4px; }
+  h3{ font-size:17px; color:#0b3d75; margin:.9em 0 .3em; }
+  .lead{ font-size:16px; background:#eef5ff; border:1px solid #cfe0f5; border-radius:10px; padding:14px 16px; }
+  code,.cmd{ font-family:"Cascadia Code",Consolas,ui-monospace,monospace; }
+  .cmd{ display:block; background:#0f1320; color:#e7e9ee; border-radius:8px; padding:10px 14px;
+        margin:8px 0; font-size:13.5px; white-space:pre-wrap; }
+  .cmd b{ color:#7ee787; } .cmd i{ color:#9aa3b2; font-style:normal; }
+  pre.code{ background:#0f1320; color:#e7e9ee; border-radius:8px; padding:12px 14px; overflow:auto;
+            font:12px/1.45 "Cascadia Code",ui-monospace,monospace; }
+  p code{ background:#eef0f4; border:1px solid #dfe2e8; border-radius:5px; padding:1px 6px; color:#b5340b; }
+  .tip{ background:#fff7e6; border:1px solid #ffe0a3; border-radius:10px; padding:12px 16px; margin:14px 0; }
+  .tip b{ color:#a85c00; }
+  .warn{ background:#fdecec; border:1px solid #f6b9b9; border-radius:10px; padding:12px 16px; margin:14px 0; }
+  .defi{ background:#f4fbf6; border:2px solid #9fe3bd; border-radius:12px; padding:14px 18px; margin:18px 0; }
+  .defi h2{ color:#0f7a45; border-color:#bdebd0; margin-top:.2em; }
+  .step{ border-left:4px solid #9fe3bd; padding:2px 0 2px 14px; margin:14px 0; }
+  .step b.n{ display:inline-block; background:#0f7a45; color:#fff; border-radius:20px;
+             padding:1px 11px; font-size:13px; margin-bottom:4px; }
+  .run{ color:#0f7a45; font-weight:600; }
+  .try{ background:#fffced; border:1px dashed #e6cf73; border-radius:8px; padding:8px 12px; margin:8px 0; font-size:14px; }
+  .expl{ background:#eef5ff; border-radius:8px; padding:8px 12px; margin:6px 0 4px; font-size:13.5px; }
+  .expl ul{ margin:4px 0 0; padding-left:20px; } .expl li{ margin:2px 0; }
+  .expl code{ background:#dde7f5; border:none; color:#0b3d75; }
+  .muted{ color:#888; }
+  table{ border-collapse:collapse; width:100%; margin:10px 0; font-size:14px; }
+  td,th{ border:1px solid #d6dae1; padding:7px 10px; text-align:left; vertical-align:top; }
+  th{ background:#eef5ff; } td:first-child code{ color:#0b3d75; font-weight:bold; }
+  hr{ border:none; border-top:1px dashed #c9ced6; margin:22px 0; }
+  .footer{ text-align:center; color:#777; font-size:13px; margin-top:30px; }
+  .pagebreak{ page-break-before:always; }
+  /* page de garde */
+  .cover{ height:265mm; display:flex; flex-direction:column; align-items:center; justify-content:center;
+          text-align:center; page-break-after:always; position:relative;
+          background:linear-gradient(160deg,#1f5fb0 0%,#0b3d75 55%,#072a52 100%); color:#fff;
+          border-radius:18px; padding:30px; }
+  .cover .frame{ border:3px solid rgba(255,255,255,.5); border-radius:16px; padding:40px 30px; width:100%; max-width:600px; }
+  .cover .peng{ font-size:90px; line-height:1; }
+  .cover .small{ letter-spacing:6px; text-transform:uppercase; font-size:15px; opacity:.85; margin-top:18px; }
+  .cover .name{ font-size:64px; font-weight:800; text-transform:uppercase; letter-spacing:2px; margin:6px 0 2px; }
+  .cover .sub{ font-size:20px; opacity:.95; margin-top:10px; }
+  .cover .stars{ font-size:24px; letter-spacing:10px; margin:22px 0; }
+  .cover .badge{ display:inline-block; margin-top:24px; border:2px solid rgba(255,255,255,.6); border-radius:30px; padding:8px 22px; font-size:14px; }
+  .cover .ed{ position:absolute; bottom:24px; font-size:12px; opacity:.8; }
+</style></head>
+<body>
+
+<section class="cover"><div class="frame">
+  <div class="peng">🐧</div>
+  <div class="small">Mon ordinateur</div>
+  <div class="name">%%NAME%%</div>
+  <div class="sub">Le guide pour explorer, jouer et créer<br>avec Linux 🚀</div>
+  <div class="stars">★ ✦ ★ ✦ ★</div>
+  <div class="badge">Explorateur Linux niveau 1</div>
+</div><div class="ed">Édition spéciale %%NAME%% · 2026</div></section>
+
+<h1>🐧 Salut %%NAME%% !</h1>
+<p class="lead">Ton ordinateur n'a pas de bureau ni de souris à cliquer : tu lui parles en
+<b>écrivant des commandes</b>, comme un magicien. ✨ <b>Tu ne peux rien casser de grave</b> —
+alors explore sans peur, recommence, amuse-toi !</p>
+
+<h2>🔑 Se connecter &amp; éteindre</h2>
+<p><b>Au démarrage</b>, l'ordi te demande qui tu es :</p>
+<div class="cmd">fedora login: <b>%%USER%%</b>     <i># ton identifiant, puis Entrée</i>
+Password: <i># ton mot de passe, puis Entrée</i></div>
+<div class="tip"><b>Surprise toute normale 👀</b> : quand tu tapes ton mot de passe, <b>rien ne
+s'affiche</b> (pas d'étoiles, rien du tout !). C'est fait exprès pour que personne ne le voie.
+Tape-le « dans le vide » et appuie sur Entrée — ça marche.</div>
+<p><b>Pour éteindre</b> quand tu as fini : appuie <b>brièvement</b> sur le bouton power (ne le
+tiens surtout pas appuyé !), ou tape <code>sudo systemctl poweroff</code>. Pour redémarrer :
+<code>sudo systemctl reboot</code>.</p>
+
+<h2>⭐ Le secret n°1 : la touche TAB ↹</h2>
+<div class="tip"><b>Tu n'as PAS besoin de tout taper !</b> Écris le <b>début</b> d'un mot,
+appuie sur <b>Tab ↹</b>, et l'ordinateur <b>complète tout seul</b>.
+<div class="cmd"><b>cd Mu</b><i>  ← Tab ↹  →</i>  <b>cd Musique/</b></div>
+🔼 Flèche <b>Haut</b> = dernière commande. &nbsp; 🧹 <code>clear</code> = nettoie l'écran. &nbsp; ❓ <code>man nom</code> = aide (q pour sortir).</div>
+
+<h2>⌨️ Les signes spéciaux (| ~ \ { } …)</h2>
+<p>Pour les commandes et le code, certains signes sont « cachés » sur le clavier — souvent avec la
+touche <b>AltGr</b> (à droite de la barre d'espace). Demande à un adulte de te les montrer, et
+<b>note-les ici</b> pour ne plus chercher :</p>
+<table>
+<tr><th>Signe</th><th>Sur TON clavier, c'est…</th><th>Ça sert à</th></tr>
+<tr><td><code>|</code> (« tuyau »)</td><td>. . . . . . . . . . . .</td><td>relier deux commandes</td></tr>
+<tr><td><code>~</code> (« tilde »)</td><td>. . . . . . . . . . . .</td><td>ta maison : <code>~/Musique</code></td></tr>
+<tr><td><code>/</code> (slash)</td><td>. . . . . . . . . . . .</td><td>séparer les dossiers</td></tr>
+<tr><td><code>\</code> (antislash)</td><td>. . . . . . . . . . . .</td><td>les codes spéciaux</td></tr>
+<tr><td><code>{ }</code> et <code>[ ]</code></td><td>. . . . . . . . . . . .</td><td>en Python</td></tr>
+<tr><td><code>_</code> (tiret bas)</td><td>. . . . . . . . . . . .</td><td>noms de fichiers</td></tr>
+</table>
+
+<h2>🧭 Se déplacer & ranger</h2>
+<table>
+<tr><th>Commande</th><th>Ce que ça fait</th></tr>
+<tr><td><code>ls</code></td><td>👀 Liste ce qu'il y a ici</td></tr>
+<tr><td><code>cd nom</code> / <code>cd ..</code></td><td>➡️ Entrer / ⬅️ remonter d'un dossier</td></tr>
+<tr><td><code>cd</code></td><td>🏠 Rentrer à la maison</td></tr>
+<tr><td><code>mkdir Jeux</code></td><td>📦 Créer un dossier</td></tr>
+<tr><td><code>cp</code> / <code>mv</code> / <code>rm</code></td><td>📑 Copier / 🚚 déplacer / 🗑️ supprimer</td></tr>
+<tr><td><code>ranger</code></td><td>🗂️ Explorer avec les flèches (q pour quitter)</td></tr>
+</table>
+<div class="warn"><b>Attention ⚠️</b> : <code>rm</code> supprime <b>pour de bon</b> (pas de corbeille) !</div>
+
+<h2>📥 Installer des programmes &amp; mettre à jour</h2>
+<p>Tu peux installer toutes les applis qui marchent en <b>console</b> (les navigateurs et bureaux sont bloqués).</p>
+<div class="cmd"><b>pkg search dessin</b>     <i># cherche un programme par mot-clé</i>
+<b>pkg install figlet</b>    <i># installe le programme (c'est déjà autorisé)</i>
+<b>pkg list</b>             <i># montre les applis déjà approuvées</i></div>
+<div class="tip"><b>🔄 Mettre à jour tout l'ordinateur</b> (les programmes + le système) — fais-le de temps en temps, par exemple une fois par semaine :
+<div class="cmd"><b>sudo maj</b></div>
+Ça télécharge les dernières versions de tout, et corrige les bugs.</div>
+
+<h2>🔍 Voir ce qui tourne &amp; arrêter un programme</h2>
+<p>Pour voir tous les programmes en marche (et combien ils utilisent l'ordi), lance un « moniteur » :</p>
+<div class="cmd"><b>htop</b>     <i># moniteur coloré (flèches pour bouger, q pour quitter)</i>
+<b>btop</b>     <i># un autre, encore plus joli ! 📊</i></div>
+<p>(<code>htop</code> et <code>btop</code> sont déjà installés. Sinon : <code>pkg install htop btop</code>.)</p>
+<table>
+<tr><th>Pour arrêter…</th><th>Quoi faire</th></tr>
+<tr><td>un programme qui tourne devant toi</td><td>appuie sur <b>Ctrl + C</b></td></tr>
+<tr><td>un programme bloqué (depuis htop)</td><td>choisis-le avec les flèches, appuie sur <b>F9</b> puis Entrée</td></tr>
+<tr><td>un programme dont tu connais le nom</td><td><code>killall nom</code> &nbsp;(ex : <code>killall mpg123</code> coupe la musique)</td></tr>
+</table>
+<div class="tip">Dans <code>htop</code>/<code>btop</code>, les barres du haut montrent le <b>processeur</b> et la
+<b>mémoire</b> : pratique pour repérer un programme qui « mange » trop l'ordinateur.</div>
+
+<h2>🎵 Ta musique</h2>
+
+<h3>1) Range ta musique 📁</h3>
+<div class="cmd"><b>cd</b>
+<b>mkdir -p Musique</b>            <i># crée le dossier Musique</i>
+<b>cd Musique</b>
+<b>mkdir Rock Rap Jeux-video</b>   <i># un sous-dossier par style (si tu veux)</i></div>
+
+<h3>2) Télécharge de la musique ⬇️</h3>
+<p>Plein de musique est <b>gratuite et libre</b> (tu as le droit de la prendre !). Demande à un adulte
+de t'aider à en trouver, par exemple sur <b>archive.org</b>, <b>Free Music Archive</b> ou <b>Jamendo</b>.</p>
+<p>Pour télécharger en console, on utilise <code>aria2c</code> — il gère les liens directs, les
+fichiers <code>.torrent</code> et les liens <code>magnet</code> :</p>
+<div class="cmd"><b>aria2c "https://.../chanson.mp3"</b>   <i># un lien direct</i>
+<b>aria2c fichier.torrent</b>             <i># un fichier torrent</i>
+<b>aria2c "magnet:?xt=..."</b>            <i># un lien magnet</i></div>
+<div class="warn"><b>Sois réglo ⚖️</b> : prends de la musique <b>libre / gratuite</b>, ou que la famille
+possède déjà. Télécharger de la musique payante sans payer, c'est interdit — en cas de doute, demande à un adulte.</div>
+<div class="tip">Les fichiers arrivent dans le dossier où tu es. Ensuite tu les ranges :
+<div class="cmd"><b>mv *.mp3 ~/Musique/Rock/</b></div></div>
+
+<h3>3) Écoute 🔊</h3>
+<div class="cmd"><b>cd ~/Musique/Rock</b>
+<b>mpg123 chanson.mp3</b>      <i># une seule chanson</i>
+<b>mpg123 *.mp3</b>           <i># tout le dossier, à la suite</i>
+<b>mpg123 -C *.mp3</b>        <i># avec les touches : espace = pause, q = quitter</i></div>
+
+<h3>4) Fabrique une playlist 🎶</h3>
+<p>Une playlist, c'est juste un fichier texte avec <b>une chanson par ligne</b>. Crée-le :</p>
+<div class="cmd"><b>cd ~/Musique</b>
+<b>micro maplaylist.txt</b></div>
+<p>Écris dedans le chemin de tes chansons (Ctrl+S pour enregistrer, Ctrl+Q pour quitter) :</p>
+<pre class="code">Rock/chanson1.mp3
+Rap/chanson2.mp3
+Jeux-video/zelda.mp3</pre>
+<p>Puis lance ta playlist :</p>
+<div class="cmd"><b>mpg123 -@ maplaylist.txt</b>       <i># joue toute la playlist</i>
+<b>mpg123 -C -@ maplaylist.txt</b>    <i># pareil, avec espace = pause, q = quitter</i></div>
+<div class="try">✦ <b>Astuce de pro :</b> mets la ligne <code>mpg123 -C -@ ~/Musique/maplaylist.txt</code> dans
+un petit fichier <code>jouer.sh</code>, rends-le exécutable (<code>chmod +x jouer.sh</code>), et tu
+lances toute ta musique avec <code>./jouer.sh</code> !</div>
+
+<h2>🤹 Pour rigoler — à toi de trouver les commandes !</h2>
+<p>Ici, <b>pas de réponses toutes faites</b> : voici des missions, à toi de découvrir comment
+les réussir. Tes 3 outils d'explorateur :</p>
+<table>
+<tr><th>Pour…</th><th>Tu utilises</th></tr>
+<tr><td>chercher un programme</td><td><code>pkg search mot</code></td></tr>
+<tr><td>l'installer</td><td><code>pkg install nom</code></td></tr>
+<tr><td>comprendre comment il marche</td><td><code>nom --help</code> &nbsp;ou&nbsp; <code>man nom</code> (q pour sortir)</td></tr>
+</table>
+<div class="defi" style="border-color:#e6cf73;background:#fffced">
+<h3 style="color:#a85c00">🎯 Tes missions (cherche, installe, essaie !)</h3>
+<ol>
+<li>🐄 Fais <b>parler une vache</b> à l'écran. <span class="muted">(indice : <code>pkg search cow</code>)</span></li>
+<li>🔠 Écris <b>ton prénom en lettres géantes</b>. <span class="muted">(indice : <code>pkg search figlet</code>)</span></li>
+<li>🔮 Affiche une <b>petite phrase au hasard</b>. <span class="muted">(indice : <code>pkg search fortune</code>)</span></li>
+<li>🚂 Trouve la commande (2 lettres !) qui fait passer un <b>train</b> quand on se trompe en tapant <code>ls</code>. <span class="muted">(indice : <code>pkg search sl</code>)</span></li>
+<li>🌈 Mets de la <b>couleur</b> sur un résultat en reliant deux commandes avec le <b>tuyau</b> <code>|</code> (touche AltGr + 6). <span class="muted">(indice : installe <code>lolcat</code>, puis <code>une_commande | lolcat</code>)</span></li>
+<li>🏆 <b>Mission finale :</b> une vache qui dit une phrase au hasard… <b>en couleur</b> ! Il faut combiner <b>trois</b> commandes avec deux tuyaux. <span class="muted">(tu as déjà tous les morceaux — à toi de les assembler !)</span></li>
+</ol>
+</div>
+<div class="tip">💡 Le réflexe du pro : devant un programme inconnu, tape <code>nom --help</code> pour découvrir tout ce qu'il sait faire.</div>
+
+<h2>🎮 Installer des jeux en console</h2>
+<table>
+<tr><th>Jeu</th><th>Installer</th><th>C'est quoi</th></tr>
+<tr><td>NetHack</td><td><code>pkg install nethack</code></td><td>Le roi des jeux d'aventure ASCII</td></tr>
+<tr><td>Dungeon Crawl</td><td><code>pkg install crawl</code></td><td>Explore des donjons</td></tr>
+<tr><td>Cataclysm DDA</td><td><code>pkg install cataclysm-dda</code></td><td>Survie géante (façon Dwarf Fortress)</td></tr>
+<tr><td>Zork &amp; fictions</td><td><code>pkg install frotz</code></td><td>Aventures à lire et à taper</td></tr>
+<tr><td>Serpent / Tetris</td><td><code>pkg install nsnake bastet</code></td><td>Les classiques</td></tr>
+<tr><td>2048 / Sudoku / Échecs</td><td><code>pkg install 2048-cli nudoku gnuchess</code></td><td>Puzzles &amp; réflexion</td></tr>
+</table>
+<div class="tip"><b>Dwarf Fortress</b> n'est pas dans la logithèque → essaie <b>Cataclysm DDA</b> qui lui ressemble, ou demande à un adulte.</div>
+
+<h2>🔭 Découverte : tes photos &amp; le ciel</h2>
+<h3>📷 Tes photos — dans le terminal !</h3>
+<p>Eh oui, on peut voir des images sans bureau. Installe puis regarde :</p>
+<div class="cmd"><b>pkg install chafa</b>
+<b>chafa ma-photo.jpg</b>     <i># affiche la photo en couleurs dans le terminal !</i></div>
+<table>
+<tr><th>Pour…</th><th>Tu fais</th></tr>
+<tr><td>regarder une photo</td><td><code>chafa photo.jpg</code> (ou <code>timg photo.jpg</code>)</td></tr>
+<tr><td>parcourir un dossier d'images</td><td><code>ranger</code> (déjà là — aperçu avec les flèches)</td></tr>
+<tr><td>la rétrécir / la faire pivoter</td><td><code>pkg install ImageMagick</code> puis <code>magick photo.jpg -resize 50% petite.jpg</code></td></tr>
+<tr><td>voir sa date &amp; ses infos</td><td><code>pkg install perl-Image-ExifTool</code> puis <code>exiftool photo.jpg</code></td></tr>
+</table>
+<h3>🌌 Explorer le ciel</h3>
+<p><b>Stellarium</b> est un vrai planétarium (étoiles, planètes, constellations). Il s'affiche en
+plein écran, donc on le lance avec <code>cage</code> :</p>
+<div class="cmd"><b>pkg install stellarium</b>
+<b>cage -- stellarium</b>     <i># Échap ou Ctrl+C pour quitter</i></div>
+<div class="try">✦ <b>Défi bonus (code) :</b> avec <code>pkg install python3-ephem</code>, écris un petit
+programme Python qui dit où est la <b>Lune</b> ce soir ! (cherche « python ephem moon » avec un adulte)</div>
+
+<!-- ================= PARTIE CODE ================= -->
+<h2>😵 Quand ça ne marche pas (c'est normal !)</h2>
+<p>Tout le monde fait des erreurs, même les pros. Voici les messages que tu verras souvent :</p>
+<table>
+<tr><th>Le message dit…</th><th>Ça veut dire</th></tr>
+<tr><td><code>command not found</code></td><td>Mot mal écrit, ou programme pas installé (<code>pkg install …</code>).</td></tr>
+<tr><td><code>No such file or directory</code></td><td>Le fichier/dossier n'existe pas (vérifie avec <code>ls</code>).</td></tr>
+<tr><td><code>Permission denied</code></td><td>Tu n'as pas le droit (parfois il manque <code>sudo</code>, parfois c'est juste interdit).</td></tr>
+<tr><td>plein de texte rouge (Python)</td><td>Lis la <b>dernière ligne</b> et le <b>numéro de ligne</b> : c'est là que ça coince.</td></tr>
+</table>
+<div class="warn"><b>Les 3 pièges classiques :</b>
+<ul>
+<li>🔠 Linux fait la différence <b>majuscule / minuscule</b> : <code>Musique</code> ≠ <code>musique</code> !</li>
+<li>␣ Les <b>espaces</b> comptent : pour un dossier « Mes Jeux », écris <code>cd "Mes Jeux"</code> (avec les guillemets).</li>
+<li>🐍 En Python, les <b>espaces au début des lignes</b> (l'indentation) font partie du code — garde le même alignement que l'exemple !</li>
+</ul></div>
+
+<div class="pagebreak"></div>
+<h1>🛠️ Apprendre à coder tes propres jeux</h1>
+
+<h2>📝 D'abord : un bon éditeur de code — <code>micro</code></h2>
+<p>Pour écrire du code, <b><code>micro</code></b> est bien plus pratique que <code>nano</code> :
+il <b>colore le code</b>, montre les numéros de ligne, et utilise les raccourcis normaux.</p>
+<div class="cmd"><b>micro serpent.py</b>     <i># ouvre (ou crée) le fichier</i></div>
+<table>
+<tr><th>Touches</th><th>Action</th></tr>
+<tr><td><code>Ctrl + S</code></td><td>💾 Enregistrer</td></tr>
+<tr><td><code>Ctrl + Q</code></td><td>🚪 Quitter</td></tr>
+<tr><td><code>Ctrl + Z</code></td><td>↩️ Annuler &nbsp;·&nbsp; <code>Ctrl+C</code>/<code>Ctrl+V</code> copier/coller</td></tr>
+</table>
+<div class="lead">🧠 <b>La règle d'or :</b> ne recopie pas tout d'un coup ! Pour chaque défi, fais
+<b>une étape à la fois</b> : écris le petit bout, <span class="run">lance-le</span>, regarde ce
+qui se passe, comprends, <b>puis</b> ajoute l'étape suivante. C'est comme ça qu'on apprend vraiment. 🌱</div>
+<div class="tip">🐍 <b>Le piège n°1 en Python : l'indentation.</b> Les <b>espaces au début des lignes</b> font
+partie du code ! Recopie-les bien et garde le même alignement que l'exemple. Bonne nouvelle :
+<code>micro</code> colore le code et t'aide à voir si quelque chose cloche.</div>
+
+<div class="lead">🔁 <b>La boucle magique : écrire → enregistrer → quitter → lancer.</b>
+À chaque fois que tu veux essayer ton code, tu fais TOUJOURS les mêmes 5 gestes :
+<table>
+<tr><th>#</th><th>Geste</th><th>Comment</th></tr>
+<tr><td>1️⃣</td><td>J'écris mon code</td><td>dans <code>micro</code></td></tr>
+<tr><td>2️⃣</td><td>💾 J'enregistre</td><td><code>Ctrl + S</code></td></tr>
+<tr><td>3️⃣</td><td>🚪 Je quitte l'éditeur</td><td><code>Ctrl + Q</code></td></tr>
+<tr><td>4️⃣</td><td>▶️ Je lance le jeu</td><td>je tape <code>python3 serpent.py</code> puis <b>Entrée</b></td></tr>
+<tr><td>5️⃣</td><td>✏️ Je veux le modifier</td><td>je rouvre <code>micro serpent.py</code>, je change, et je recommence au 2️⃣ !</td></tr>
+</table>
+👉 Dans tout ce guide, le signe <span class="run">▶</span> veut TOUJOURS dire :
+« <b>enregistre (<code>Ctrl+S</code>), quitte (<code>Ctrl+Q</code>), puis tape <code>python3 nomdufichier.py</code> et Entrée</b> ».
+Le <b>nom du fichier</b> est celui que tu as ouvert (ici <code>serpent.py</code>).</div>
+
+<!-- ===== DÉFI 0 : SNAKE ===== -->
+<div class="defi">
+<h2>🐍 Défi 0 — Code le Serpent (on commence par là !)</h2>
+<p>On utilise <b>curses</b> (pour dessiner dans le terminal). <code>micro serpent.py</code></p>
+
+<div class="step"><b class="n">Étape 1</b><br>
+Ouvrir une fenêtre curses qui attend une touche :
+<pre class="code">%%snake_1%%</pre>
+<div class="run">▶ python3 serpent.py</div> → un message, puis une touche pour sortir.</div>
+
+<div class="step"><b class="n">Étape 2</b><br>
+Un point <code>#</code> qui bouge avec les <b>flèches</b> (q pour quitter) :
+<pre class="code">%%snake_2%%</pre>
+<div class="run">▶ python3 serpent.py</div> (n'oublie pas <code>Ctrl+S</code> avant !) → tu pilotes un point !</div>
+
+<div class="step"><b class="n">Étape 3</b><br>
+Un vrai serpent : une <b>liste</b> de segments qui avance (on ajoute une tête, on retire la queue) :
+<pre class="code">%%snake_3%%</pre>
+<div class="run">▶ python3 serpent.py</div> (enregistre d'abord : <code>Ctrl+S</code>) → le serpent glisse tout seul.</div>
+
+<div class="step"><b class="n">Étape 4</b><br>
+La <b>pomme</b> <code>*</code> et le <b>score</b> : quand il mange, il grandit.
+<pre class="code">%%snake_4%%</pre>
+<div class="run">▶ python3 serpent.py</div> (enregistre d'abord : <code>Ctrl+S</code>) → mange les pommes, le serpent s'allonge.</div>
+
+<div class="step"><b class="n">Étape 5 — la fin du jeu</b><br>
+On ajoute le « Game Over » si on touche un mur ou son corps :
+<pre class="code">%%snake_5%%</pre>
+<div class="run">▶ python3 serpent.py</div> → le jeu complet ! 🎉</div>
+<div class="try">✦ <b>À toi :</b> change <code>timeout(120)</code> en <code>timeout(60)</code> → le serpent va 2× plus vite !</div>
+</div>
+
+<!-- ===== DÉFI 1 : DÉMOSCENE ===== -->
+<div class="defi">
+<h2>🌈 Défi 1 — Une démo « plasma »</h2>
+<p>La <b>demoscene</b>, c'est l'art de programmer de belles animations. On part de zéro et
+on construit pas à pas. Crée le fichier : <code>micro plasma.py</code></p>
+
+<div class="step"><b class="n">Étape 1</b><br>
+Affiche des carrés de couleur. Le code secret <code>\033[48;5;Nm</code> = « fond couleur n° N ».
+<pre class="code">%%plasma_1%%</pre>
+<div class="run">▶ python3 plasma.py</div> → tu vois 3 carrés de couleur.</div>
+
+<div class="step"><b class="n">Étape 2</b><br>
+Une <b>boucle</b> pour faire une ligne dégradée (une couleur par colonne) :
+<pre class="code">%%plasma_2%%</pre>
+<div class="run">▶ python3 plasma.py</div> → une belle ligne arc-en-ciel.</div>
+
+<div class="step"><b class="n">Étape 3</b><br>
+Deux boucles imbriquées = tout un écran (lignes × colonnes) :
+<pre class="code">%%plasma_3%%</pre>
+<div class="run">▶</div> → un motif en diagonale.</div>
+
+<div class="step"><b class="n">Étape 4</b><br>
+On remplace le calcul de couleur par des <b>sinus</b> (des vagues !) :
+<pre class="code">%%plasma_4%%</pre>
+<div class="run">▶</div> → des vagues douces de couleur.</div>
+
+<div class="step"><b class="n">Étape 5 — l'animation !</b><br>
+On met tout dans une boucle <code>while</code> avec le temps <code>t</code> qui avance :
+<pre class="code">%%plasma_5%%</pre>
+<div class="run">▶ python3 plasma.py</div> (Ctrl+C pour arrêter) → ça <b>bouge</b> ! 🎉</div>
+<div class="try">✦ <b>À toi :</b> change les <code>0.1</code> et <code>0.08</code> de l'étape 5. Chaque nombre donne une animation différente !</div>
+</div>
+
+<!-- ===== DÉFI 2 : MUSIQUE ===== -->
+<div class="defi">
+<h2>🎹 Défi 2 — Fabrique de la musique</h2>
+<p>On va créer du <b>son</b> avec des maths. Installe d'abord les outils :</p>
+<div class="cmd"><b>pkg install python3-sounddevice python3-numpy</b></div>
+<p>Puis : <code>micro musique.py</code></p>
+
+<div class="step"><b class="n">Étape 1</b><br>
+Un seul son : une onde sinusoïdale à 440 Hz (la note « la »).
+<pre class="code">%%music_1%%</pre>
+<div class="run">▶ python3 musique.py</div> → tu entends un « la » ! 🔊</div>
+
+<div class="step"><b class="n">Étape 2</b><br>
+On range ça dans une <b>fonction</b> <code>note()</code> et on joue 3 notes :
+<pre class="code">%%music_2%%</pre>
+<div class="run">▶</div> → do, mi, sol à la suite.</div>
+
+<div class="step"><b class="n">Étape 3 — ta mélodie</b><br>
+Un dictionnaire de notes + une liste = une vraie partition :
+<pre class="code">%%music_3%%</pre>
+<div class="run">▶ python3 musique.py</div></div>
+<div class="try">✦ <b>À toi :</b> écris ta propre <code>melodie</code> ! (essaie <code>["do","do","sol","sol","la","la","sol"]</code> = Au clair de la lune 🌙)</div>
+</div>
+
+<!-- ===== DÉFI 3 : CASSE-BRIQUE ===== -->
+<div class="defi">
+<h2>🧱 Défi 3 — Code un casse-brique</h2>
+<p><code>micro casse-brique.py</code></p>
+
+<div class="step"><b class="n">Étape 1</b><br>
+Une <b>raquette</b> <code>====</code> en bas, qui bouge à gauche/droite :
+<pre class="code">%%brick_1%%</pre>
+<div class="run">▶</div> → tu déplaces la raquette.</div>
+
+<div class="step"><b class="n">Étape 2</b><br>
+La <b>balle</b> <code>O</code> qui rebondit sur les murs et la raquette (et on perd en bas) :
+<pre class="code">%%brick_2%%</pre>
+<div class="run">▶</div> → renvoie la balle avec la raquette !</div>
+
+<div class="step"><b class="n">Étape 3 — les briques</b><br>
+On ajoute les <b>briques</b> <code>[]</code> à casser, le score, et la victoire :
+<pre class="code">%%brick_3%%</pre>
+<div class="run">▶ python3 casse-brique.py</div> → casse tout ! 🎉</div>
+<div class="try">✦ <b>Défi :</b> ajoute <b>3 vies</b> avant de perdre, au lieu de finir à la 1ʳᵉ balle.</div>
+</div>
+
+<!-- ===== DÉFI 4 : LODE RUNNER ===== -->
+<div class="defi">
+<h2>🪜 Défi 4 — Lode Runner (grand défi !)</h2>
+<p>Le plus dur. Tu cours, tu grimpes aux échelles <code>H</code>, tu tombes, tu ramasses l'or <code>$</code>.
+<code>micro lode.py</code></p>
+
+<div class="step"><b class="n">Étape 1</b><br>
+La <b>carte</b> et un personnage <code>@</code> qui se déplace sans traverser les murs <code>X</code> :
+<pre class="code">%%lode_1%%</pre>
+<div class="run">▶</div> → tu bouges dans le décor (mais tu voles encore).</div>
+
+<div class="step"><b class="n">Étape 2 — gravité, échelles, or</b><br>
+On ajoute la <b>gravité</b> (tu tombes), les <b>échelles</b> (flèche Haut) et l'<b>or</b> :
+<pre class="code">%%lode_2%%</pre>
+<div class="run">▶ python3 lode.py</div> → ramasse les 4 pépites ! 🏆</div>
+
+<h3>🗺️ Crée tes propres niveaux</h3>
+<p>La carte, c'est juste la liste <code>NIVEAU</code> : chaque ligne de texte = une ligne du décor.
+Redessine-la dans <code>micro</code> avec ces 4 symboles :</p>
+<table>
+<tr><th>Symbole</th><th>C'est quoi</th></tr>
+<tr><td><code>X</code></td><td>un mur / le sol — on marche dessus, on ne le traverse pas</td></tr>
+<tr><td><code>H</code></td><td>une échelle — flèche Haut pour grimper</td></tr>
+<tr><td><code>$</code></td><td>une pépite d'or à ramasser</td></tr>
+<tr><td><code>.</code></td><td>du vide (de l'air)</td></tr>
+</table>
+<p>Exemple à recopier, puis invente le tien :</p>
+<pre class="code">%%lode_level%%</pre>
+<div class="warn"><b>3 règles à respecter :</b>
+<ul>
+<li>Toutes les lignes ont <b>exactement la même longueur</b> (sinon le jeu plante).</li>
+<li>Le joueur démarre en <b>haut à gauche</b> → laisse cette case vide (un <code>.</code>).</li>
+<li>Compte tes <code>$</code> et mets ce nombre dans <code>if score &gt;= 4</code> (remplace le <code>4</code> !) pour gagner au bon moment.</li>
+</ul></div>
+
+<h3>🚀 Pour aller plus loin (à toi de coder !)</h3>
+<p><b>🗺️ Enchaîner plusieurs niveaux</b> — range plusieurs cartes dans une liste, et passe à
+la suivante quand tout l'or est ramassé :</p>
+<pre class="code">NIVEAUX = [NIVEAU1, NIVEAU2, NIVEAU3]   # plusieurs cartes
+niveau = 0
+g = [list(r) for r in NIVEAUX[niveau]]
+# quand tout l'or est pris :
+#   niveau += 1
+#   g = [list(r) for r in NIVEAUX[niveau]]   # charge la carte suivante
+#   py, px = 1, 1                             # replace le joueur en haut</pre>
+
+<p><b>🕳️ Creuser un trou</b> (le pouvoir spécial de Lode Runner !) avec la touche <code>d</code> :</p>
+<pre class="code">if k == ord('d'):
+    if case(g, py+1, px+1) == 'X':   # s'il y a un sol devant-dessous
+        g[py+1][px+1] = '.'          # on le casse !</pre>
+
+<p><b>👾 Ajouter un ennemi</b> — donne-lui une position et fais-le se rapprocher de toi à chaque tour :</p>
+<pre class="code">ey, ex = 1, 20            # position de depart de l'ennemi (au debut du jeu)
+# ... dans la boucle :
+if ex &lt; px: ex += 1       # il se rapproche en x
+elif ex &gt; px: ex -= 1
+stdscr.addch(ey, ex, 'E')             # on le dessine
+if (ey, ex) == (py, px): break        # attrape ! game over</pre>
+
+<div class="try">✦ <b>La méthode :</b> ajoute <b>une seule</b> idée, lance, regarde. Si ça casse, lis le
+message d'erreur (il indique souvent la ligne !) et corrige. C'est ça, programmer. 🌱</div>
+</div>
+
+<hr>
+%%BONUS%%
+<h2>📖 Mini-lexique</h2>
+<table>
+<tr><td><b>commande</b></td><td>un ordre que tu tapes (ex : <code>ls</code>)</td></tr>
+<tr><td><b>dossier</b></td><td>un « tiroir » qui range des fichiers</td></tr>
+<tr><td><b>fichier</b></td><td>un document : texte, musique, programme…</td></tr>
+<tr><td><b>terminal / console</b></td><td>l'écran où tu écris les commandes</td></tr>
+<tr><td><b>variable</b></td><td>une boîte qui garde une valeur (<code>score = 0</code>)</td></tr>
+<tr><td><b>boucle</b></td><td>répéter quelque chose (<code>for</code>, <code>while</code>)</td></tr>
+<tr><td><b>fonction</b></td><td>un bloc de code réutilisable (<code>def note(...)</code>)</td></tr>
+<tr><td><b>liste</b></td><td>plusieurs choses dans l'ordre (<code>[1, 2, 3]</code>)</td></tr>
+<tr><td><b>installer</b></td><td>ajouter un nouveau programme (<code>pkg install</code>)</td></tr>
+</table>
+
+<p class="footer">🐧 Bravo %%NAME%% ! Chaque petit pas te rend plus fort(e). Continue d'explorer et de créer !</p>
+</body></html>
+'''
+
+
+SPELEO_HTML = r'''
+<div class="defi" style="border-color:#c9a06a;background:#fbf6ef">
+<h2 style="color:#7a4a1f;border-color:#e3d2bb">🕳️ Spécial spéléo — pour toi !</h2>
+<p>Comme tu adores les grottes, voici de quoi en explorer… et même <b>créer les tiennes</b> ! 🔦</p>
+<h3>🎮 Des jeux de grotte</h3>
+<p>Le tout premier jeu d'aventure de l'histoire se passe dans une <b>vraie grotte</b> (la Mammoth Cave) !</p>
+<div class="cmd"><b>pkg install bsd-games</b>
+<b>adventure</b>     <i># explore la grotte en tapant des mots : go, look, get…</i>
+<b>wump</b>          <i># « Hunt the Wumpus » : traque le monstre dans les galeries</i></div>
+<h3>🗺️ Code : génère ta propre grotte !</h3>
+<p>On fabrique une grotte au hasard, comme dans les vrais jeux. <code>micro grotte.py</code></p>
+<div class="step"><b class="n">Étape 1</b><br>
+D'abord de la roche au hasard (<code>#</code> = roche, espace = vide) :
+<pre class="code">%%cave_1%%</pre>
+<div class="run">▶ python3 grotte.py</div> → un nuage de points… pas encore une grotte.</div>
+<div class="step"><b class="n">Étape 2 — la magie</b><br>
+On « lisse » avec un <b>automate cellulaire</b>, répété 5 fois → ça creuse des cavernes :
+<pre class="code">%%cave_2%%</pre>
+<div class="run">▶ python3 grotte.py</div> → de vraies grottes apparaissent ! 🌀</div>
+<div class="step"><b class="n">Étape 3 — explore-la</b><br>
+On ajoute un explorateur <code>@</code> qui se balade dans les couloirs (flèches) :
+<pre class="code">%%cave_3%%</pre>
+<div class="run">▶ python3 grotte.py</div> → promène-toi dans TA grotte ! 🧭</div>
+<div class="try">✦ <b>À toi :</b> relance → une <b>nouvelle grotte</b> à chaque fois ! Ajoute des trésors <code>$</code> à trouver, comme dans Lode Runner.</div>
+</div>
+'''
+
+MUSIQUE_HTML = r'''
+<div class="defi" style="border-color:#c47ab0;background:#fdf3f9">
+<h2 style="color:#8a2d6b;border-color:#edcfe2">🎼 Spécial musique — pour toi !</h2>
+<p>Tu veux composer ? Voici deux façons : une toute simple en console, et le vrai studio des musiciens-codeurs. 🎶</p>
+
+<h3>🎵 Composer en « ABC » (tout simple)</h3>
+<p>L'ABC, c'est écrire une mélodie en <b>texte</b> : chaque lettre est une note ! Installe les outils :</p>
+<div class="cmd"><b>pkg install abcMIDI timidity++</b></div>
+<p>Crée <code>micro chanson.abc</code> et écris ta première mélodie :</p>
+<pre class="code">X:1
+T:Ma premiere chanson
+M:4/4
+L:1/4
+K:C
+C D E F | G A B c | c B A G | F E D C |</pre>
+<div class="expl">🔍 <b>Ce que ça veut dire :</b><ul>
+<li><code>T:</code> = le titre &nbsp;·&nbsp; <code>K:C</code> = la tonalité (do majeur).</li>
+<li><code>C D E F G A B</code> = do ré mi fa sol la si ; <code>c</code> en minuscule = une octave plus haut.</li>
+<li>Le <code>|</code> sépare les mesures.</li>
+</ul></div>
+<p>Transforme-la en musique et écoute :</p>
+<div class="cmd"><b>abc2midi chanson.abc -o chanson.mid</b>
+<b>timidity chanson.mid</b>     <i># joue ta compo ! 🔊</i></div>
+<div class="try">✦ <b>À toi :</b> change les notes, ajoute des mesures. Des tonnes de tutos sur <b>abcnotation.com</b> !</div>
+
+<h3>🚀 Sonic Pi (le studio des codeurs-musiciens)</h3>
+<p>Sonic Pi permet de composer <b>en codant</b>, avec des sons et des boucles, et il a <b>plein de
+tutos intégrés</b>. Il s'installe d'une façon spéciale → <b>demande à un adulte</b> de le mettre en place
+une fois. Ensuite tu le lances en plein écran :</p>
+<div class="cmd"><b>cage -- sonic-pi</b></div>
+<p>Ta première ligne de musique dans Sonic Pi :</p>
+<pre class="code">play 60      # joue une note
+sleep 1      # attends 1 seconde
+play 64
+play 67      # do - mi - sol !</pre>
+<div class="try">✦ Ouvre le <b>menu « Tutorial »</b> de Sonic Pi : il y a des dizaines de leçons, de la plus simple à la plus dingue ! 🎹</div>
+</div>
+'''
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  ENGLISH EDITION — same compile-tested code, translated prose.
+#  (The # comments inside the code blocks stay in French: a fun bonus, and a
+#   great "good first issue" for contributors to translate.)
+# ═══════════════════════════════════════════════════════════════════════════
+TEMPLATE_EN = r'''<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>%%NAME%%'s guide</title>
+<style>
+  @page { size: A4; margin: 15mm; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body{ font:15px/1.6 "Segoe UI",system-ui,sans-serif; color:#1a1a1a; max-width:820px;
+        margin:0 auto; padding:20px; background:#fff; }
+  h1{ font-size:28px; color:#1f5fb0; margin:.3em 0; }
+  h2{ font-size:21px; color:#1f5fb0; margin-top:1.3em; border-bottom:3px solid #cfe0f5; padding-bottom:4px; }
+  h3{ font-size:17px; color:#0b3d75; margin:.9em 0 .3em; }
+  .lead{ font-size:16px; background:#eef5ff; border:1px solid #cfe0f5; border-radius:10px; padding:14px 16px; }
+  code,.cmd{ font-family:"Cascadia Code",Consolas,ui-monospace,monospace; }
+  .cmd{ display:block; background:#0f1320; color:#e7e9ee; border-radius:8px; padding:10px 14px;
+        margin:8px 0; font-size:13.5px; white-space:pre-wrap; }
+  .cmd b{ color:#7ee787; } .cmd i{ color:#9aa3b2; font-style:normal; }
+  pre.code{ background:#0f1320; color:#e7e9ee; border-radius:8px; padding:12px 14px; overflow:auto;
+            font:12px/1.45 "Cascadia Code",ui-monospace,monospace; }
+  p code{ background:#eef0f4; border:1px solid #dfe2e8; border-radius:5px; padding:1px 6px; color:#b5340b; }
+  .tip{ background:#fff7e6; border:1px solid #ffe0a3; border-radius:10px; padding:12px 16px; margin:14px 0; }
+  .tip b{ color:#a85c00; }
+  .warn{ background:#fdecec; border:1px solid #f6b9b9; border-radius:10px; padding:12px 16px; margin:14px 0; }
+  .defi{ background:#f4fbf6; border:2px solid #9fe3bd; border-radius:12px; padding:14px 18px; margin:18px 0; }
+  .defi h2{ color:#0f7a45; border-color:#bdebd0; margin-top:.2em; }
+  .step{ border-left:4px solid #9fe3bd; padding:2px 0 2px 14px; margin:14px 0; }
+  .step b.n{ display:inline-block; background:#0f7a45; color:#fff; border-radius:20px;
+             padding:1px 11px; font-size:13px; margin-bottom:4px; }
+  .run{ color:#0f7a45; font-weight:600; }
+  .try{ background:#fffced; border:1px dashed #e6cf73; border-radius:8px; padding:8px 12px; margin:8px 0; font-size:14px; }
+  .expl{ background:#eef5ff; border-radius:8px; padding:8px 12px; margin:6px 0 4px; font-size:13.5px; }
+  .expl ul{ margin:4px 0 0; padding-left:20px; } .expl li{ margin:2px 0; }
+  .expl code{ background:#dde7f5; border:none; color:#0b3d75; }
+  .muted{ color:#888; }
+  table{ border-collapse:collapse; width:100%; margin:10px 0; font-size:14px; }
+  td,th{ border:1px solid #d6dae1; padding:7px 10px; text-align:left; vertical-align:top; }
+  th{ background:#eef5ff; } td:first-child code{ color:#0b3d75; font-weight:bold; }
+  hr{ border:none; border-top:1px dashed #c9ced6; margin:22px 0; }
+  .footer{ text-align:center; color:#777; font-size:13px; margin-top:30px; }
+  .pagebreak{ page-break-before:always; }
+  .cover{ height:265mm; display:flex; flex-direction:column; align-items:center; justify-content:center;
+          text-align:center; page-break-after:always; position:relative;
+          background:linear-gradient(160deg,#1f5fb0 0%,#0b3d75 55%,#072a52 100%); color:#fff;
+          border-radius:18px; padding:30px; }
+  .cover .frame{ border:3px solid rgba(255,255,255,.5); border-radius:16px; padding:40px 30px; width:100%; max-width:600px; }
+  .cover .peng{ font-size:90px; line-height:1; }
+  .cover .small{ letter-spacing:6px; text-transform:uppercase; font-size:15px; opacity:.85; margin-top:18px; }
+  .cover .name{ font-size:64px; font-weight:800; text-transform:uppercase; letter-spacing:2px; margin:6px 0 2px; }
+  .cover .sub{ font-size:20px; opacity:.95; margin-top:10px; }
+  .cover .stars{ font-size:24px; letter-spacing:10px; margin:22px 0; }
+  .cover .badge{ display:inline-block; margin-top:24px; border:2px solid rgba(255,255,255,.6); border-radius:30px; padding:8px 22px; font-size:14px; }
+  .cover .ed{ position:absolute; bottom:24px; font-size:12px; opacity:.8; }
+</style></head>
+<body>
+
+<section class="cover"><div class="frame">
+  <div class="peng">🐧</div>
+  <div class="small">My computer</div>
+  <div class="name">%%NAME%%</div>
+  <div class="sub">The guide to explore, play and create<br>with Linux 🚀</div>
+  <div class="stars">★ ✦ ★ ✦ ★</div>
+  <div class="badge">Linux Explorer — Level 1</div>
+</div><div class="ed">Special edition · 2026</div></section>
+
+<h1>🐧 Hi %%NAME%%!</h1>
+<p class="lead">Your computer has no desktop and no mouse to click: you talk to it by
+<b>writing commands</b>, like a wizard. ✨ <b>You can't break anything serious</b> —
+so explore fearlessly, try again, have fun!</p>
+
+<h2>🔑 Log in &amp; shut down</h2>
+<p><b>At startup</b>, the computer asks who you are:</p>
+<div class="cmd">fedora login: <b>%%USER%%</b>     <i># your username, then Enter</i>
+Password: <i># your password, then Enter</i></div>
+<div class="tip"><b>A perfectly normal surprise 👀</b>: when you type your password, <b>nothing
+shows up</b> (no stars, nothing at all!). That's on purpose so nobody can see it.
+Type it 'into the void' and press Enter — it works.</div>
+<p><b>To shut down</b> when you're done: press the power button <b>briefly</b> (never hold it!),
+or type <code>sudo systemctl poweroff</code>. To restart: <code>sudo systemctl reboot</code>.</p>
+
+<h2>⭐ Secret #1: the TAB key ↹</h2>
+<div class="tip"><b>You do NOT need to type everything!</b> Write the <b>start</b> of a word,
+press <b>Tab ↹</b>, and the computer <b>completes it for you</b>.
+<div class="cmd"><b>cd Mu</b><i>  ← Tab ↹  →</i>  <b>cd Music/</b></div>
+🔼 <b>Up</b> arrow = last command. &nbsp; 🧹 <code>clear</code> = clears the screen. &nbsp; ❓ <code>man name</code> = help (q to quit).</div>
+
+<h2>⌨️ The special signs (| ~ \ { } …)</h2>
+<p>For commands and code, some signs are 'hidden' on the keyboard — often with the
+<b>AltGr</b> key (right of the space bar). Ask an adult to show you, and
+<b>write them down here</b> so you never search again:</p>
+<table>
+<tr><th>Sign</th><th>On YOUR keyboard, it's…</th><th>Used for</th></tr>
+<tr><td><code>|</code> ('pipe')</td><td>. . . . . . . . . . . .</td><td>linking two commands</td></tr>
+<tr><td><code>~</code> ('tilde')</td><td>. . . . . . . . . . . .</td><td>your home: <code>~/Music</code></td></tr>
+<tr><td><code>/</code> (slash)</td><td>. . . . . . . . . . . .</td><td>separating folders</td></tr>
+<tr><td><code>\</code> (backslash)</td><td>. . . . . . . . . . . .</td><td>special codes</td></tr>
+<tr><td><code>{ }</code> and <code>[ ]</code></td><td>. . . . . . . . . . . .</td><td>in Python</td></tr>
+<tr><td><code>_</code> (underscore)</td><td>. . . . . . . . . . . .</td><td>file names</td></tr>
+</table>
+
+<h2>🧭 Move around &amp; tidy up</h2>
+<table>
+<tr><th>Command</th><th>What it does</th></tr>
+<tr><td><code>ls</code></td><td>👀 List what's here</td></tr>
+<tr><td><code>cd name</code> / <code>cd ..</code></td><td>➡️ Enter / ⬅️ go up one folder</td></tr>
+<tr><td><code>cd</code></td><td>🏠 Go back home</td></tr>
+<tr><td><code>mkdir Games</code></td><td>📦 Create a folder</td></tr>
+<tr><td><code>cp</code> / <code>mv</code> / <code>rm</code></td><td>📑 Copy / 🚚 move / 🗑️ delete</td></tr>
+<tr><td><code>ranger</code></td><td>🗂️ Browse with the arrow keys (q to quit)</td></tr>
+</table>
+<div class="warn"><b>Careful ⚠️</b>: <code>rm</code> deletes <b>for good</b> (no recycle bin)!</div>
+
+<h2>📥 Install programs &amp; update</h2>
+<p>You can install any app that works in the <b>console</b> (browsers and desktops are blocked).</p>
+<div class="cmd"><b>pkg search drawing</b>    <i># search a program by keyword</i>
+<b>pkg install figlet</b>    <i># install the program (already allowed)</i>
+<b>pkg list</b>             <i># show the already-approved apps</i></div>
+<div class="tip"><b>🔄 Update the whole computer</b> (programs + system) — do it now and then, e.g. once a week:
+<div class="cmd"><b>sudo maj</b></div>
+It downloads the latest of everything and fixes bugs.</div>
+
+<h2>🔍 See what's running &amp; stop a program</h2>
+<p>To see every running program (and how much of the computer they use), launch a 'monitor':</p>
+<div class="cmd"><b>htop</b>     <i># colourful monitor (arrows to move, q to quit)</i>
+<b>btop</b>     <i># another one, even prettier! 📊</i></div>
+<p>(<code>htop</code> and <code>btop</code> are already installed. Otherwise: <code>pkg install htop btop</code>.)</p>
+<table>
+<tr><th>To stop…</th><th>What to do</th></tr>
+<tr><td>a program running in front of you</td><td>press <b>Ctrl + C</b></td></tr>
+<tr><td>a stuck program (from htop)</td><td>pick it with the arrows, press <b>F9</b> then Enter</td></tr>
+<tr><td>a program whose name you know</td><td><code>killall name</code> &nbsp;(e.g. <code>killall mpg123</code> stops the music)</td></tr>
+</table>
+<div class="tip">In <code>htop</code>/<code>btop</code>, the top bars show the <b>processor</b> and <b>memory</b>:
+handy to spot a program that 'eats' too much of the computer.</div>
+
+<h2>🎵 Your music</h2>
+
+<h3>1) Tidy your music 📁</h3>
+<div class="cmd"><b>cd</b>
+<b>mkdir -p Music</b>             <i># create the Music folder</i>
+<b>cd Music</b>
+<b>mkdir Rock Rap Video-games</b>  <i># one sub-folder per style (if you like)</i></div>
+
+<h3>2) Download music ⬇️</h3>
+<p>Lots of music is <b>free and libre</b> (you're allowed to take it!). Ask an adult to help you find
+some, for example on <b>archive.org</b>, <b>Free Music Archive</b> or <b>Jamendo</b>.</p>
+<p>To download in the console we use <code>aria2c</code> — it handles direct links,
+<code>.torrent</code> files and <code>magnet</code> links:</p>
+<div class="cmd"><b>aria2c "https://.../song.mp3"</b>    <i># a direct link</i>
+<b>aria2c file.torrent</b>              <i># a torrent file</i>
+<b>aria2c "magnet:?xt=..."</b>          <i># a magnet link</i></div>
+<div class="warn"><b>Play fair ⚖️</b>: take <b>free / libre</b> music, or music the family already owns.
+Downloading paid music without paying is not allowed — if in doubt, ask an adult.</div>
+<div class="tip">Files arrive in the folder you're in. Then tidy them away:
+<div class="cmd"><b>mv *.mp3 ~/Music/Rock/</b></div></div>
+
+<h3>3) Listen 🔊</h3>
+<div class="cmd"><b>cd ~/Music/Rock</b>
+<b>mpg123 song.mp3</b>       <i># a single song</i>
+<b>mpg123 *.mp3</b>          <i># the whole folder, one after another</i>
+<b>mpg123 -C *.mp3</b>       <i># with keys: space = pause, q = quit</i></div>
+
+<h3>4) Make a playlist 🎶</h3>
+<p>A playlist is just a text file with <b>one song per line</b>. Create it:</p>
+<div class="cmd"><b>cd ~/Music</b>
+<b>micro myplaylist.txt</b></div>
+<p>Write the paths of your songs inside (Ctrl+S to save, Ctrl+Q to quit):</p>
+<pre class="code">Rock/song1.mp3
+Rap/song2.mp3
+Video-games/zelda.mp3</pre>
+<p>Then play your playlist:</p>
+<div class="cmd"><b>mpg123 -@ myplaylist.txt</b>       <i># plays the whole playlist</i>
+<b>mpg123 -C -@ myplaylist.txt</b>    <i># same, with space = pause, q = quit</i></div>
+<div class="try">✦ <b>Pro tip:</b> put the line <code>mpg123 -C -@ ~/Music/myplaylist.txt</code> in a small
+file <code>play.sh</code>, make it executable (<code>chmod +x play.sh</code>), and launch all your
+music with <code>./play.sh</code>!</div>
+
+<h2>🤹 Just for fun — find the commands yourself!</h2>
+<p>Here, <b>no ready-made answers</b>: here are missions, and it's up to you to discover how to
+win them. Your 3 explorer tools:</p>
+<table>
+<tr><th>To…</th><th>You use</th></tr>
+<tr><td>search a program</td><td><code>pkg search word</code></td></tr>
+<tr><td>install it</td><td><code>pkg install name</code></td></tr>
+<tr><td>understand how it works</td><td><code>name --help</code> &nbsp;or&nbsp; <code>man name</code> (q to quit)</td></tr>
+</table>
+<div class="defi" style="border-color:#e6cf73;background:#fffced">
+<h3 style="color:#a85c00">🎯 Your missions (search, install, try!)</h3>
+<ol>
+<li>🐄 Make a <b>cow talk</b> on screen. <span class="muted">(hint: <code>pkg search cow</code>)</span></li>
+<li>🔠 Write <b>your name in giant letters</b>. <span class="muted">(hint: <code>pkg search figlet</code>)</span></li>
+<li>🔮 Show a <b>random little sentence</b>. <span class="muted">(hint: <code>pkg search fortune</code>)</span></li>
+<li>🚂 Find the command (2 letters!) that sends a <b>train</b> across when you mistype <code>ls</code>. <span class="muted">(hint: <code>pkg search sl</code>)</span></li>
+<li>🌈 Add <b>colour</b> to a result by linking two commands with the <b>pipe</b> <code>|</code>. <span class="muted">(hint: install <code>lolcat</code>, then <code>some_command | lolcat</code>)</span></li>
+<li>🏆 <b>Final mission:</b> a cow saying a random sentence… <b>in colour</b>! Combine <b>three</b> commands with two pipes. <span class="muted">(you already have all the pieces — put them together!)</span></li>
+</ol>
+</div>
+<div class="tip">💡 The pro reflex: facing an unknown program, type <code>name --help</code> to discover everything it can do.</div>
+
+<h2>🎮 Install console games</h2>
+<table>
+<tr><th>Game</th><th>Install</th><th>What it is</th></tr>
+<tr><td>NetHack</td><td><code>pkg install nethack</code></td><td>The king of ASCII adventure games</td></tr>
+<tr><td>Dungeon Crawl</td><td><code>pkg install crawl</code></td><td>Explore dungeons</td></tr>
+<tr><td>Cataclysm DDA</td><td><code>pkg install cataclysm-dda</code></td><td>Huge survival (Dwarf-Fortress style)</td></tr>
+<tr><td>Zork &amp; fiction</td><td><code>pkg install frotz</code></td><td>Adventures to read and type</td></tr>
+<tr><td>Snake / Tetris</td><td><code>pkg install nsnake bastet</code></td><td>The classics</td></tr>
+<tr><td>2048 / Sudoku / Chess</td><td><code>pkg install 2048-cli nudoku gnuchess</code></td><td>Puzzles &amp; thinking</td></tr>
+</table>
+<div class="tip"><b>Dwarf Fortress</b> isn't in the app store → try <b>Cataclysm DDA</b> which is similar, or ask an adult.</div>
+
+<h2>🔭 Discover: your photos &amp; the sky</h2>
+<h3>📷 Your photos — in the terminal!</h3>
+<p>Yes, you can view images with no desktop. Install, then look:</p>
+<div class="cmd"><b>pkg install chafa</b>
+<b>chafa my-photo.jpg</b>     <i># shows the photo in colour in the terminal!</i></div>
+<table>
+<tr><th>To…</th><th>You do</th></tr>
+<tr><td>view a photo</td><td><code>chafa photo.jpg</code> (or <code>timg photo.jpg</code>)</td></tr>
+<tr><td>browse a folder of images</td><td><code>ranger</code> (already there — preview with the arrows)</td></tr>
+<tr><td>shrink / rotate it</td><td><code>pkg install ImageMagick</code> then <code>magick photo.jpg -resize 50% small.jpg</code></td></tr>
+<tr><td>see its date &amp; info</td><td><code>pkg install perl-Image-ExifTool</code> then <code>exiftool photo.jpg</code></td></tr>
+</table>
+<h3>🌌 Explore the sky</h3>
+<p><b>Stellarium</b> is a real planetarium (stars, planets, constellations). It runs fullscreen,
+so we launch it with <code>cage</code>:</p>
+<div class="cmd"><b>pkg install stellarium</b>
+<b>cage -- stellarium</b>     <i># Esc or Ctrl+C to quit</i></div>
+<div class="try">✦ <b>Bonus challenge (code):</b> with <code>pkg install python3-ephem</code>, write a small
+Python program that tells where the <b>Moon</b> is tonight! (search 'python ephem moon' with an adult)</div>
+
+<!-- ================= CODING PART ================= -->
+<h2>😵 When it doesn't work (that's normal!)</h2>
+<p>Everyone makes mistakes, even pros. Here are the messages you'll see often:</p>
+<table>
+<tr><th>The message says…</th><th>It means</th></tr>
+<tr><td><code>command not found</code></td><td>Word misspelled, or program not installed (<code>pkg install …</code>).</td></tr>
+<tr><td><code>No such file or directory</code></td><td>The file/folder doesn't exist (check with <code>ls</code>).</td></tr>
+<tr><td><code>Permission denied</code></td><td>You're not allowed (sometimes <code>sudo</code> is missing, sometimes it's just blocked).</td></tr>
+<tr><td>lots of red text (Python)</td><td>Read the <b>last line</b> and the <b>line number</b>: that's where it's stuck.</td></tr>
+</table>
+<div class="warn"><b>The 3 classic traps:</b>
+<ul>
+<li>🔠 Linux cares about <b>UPPER / lower case</b>: <code>Music</code> ≠ <code>music</code>!</li>
+<li>␣ <b>Spaces</b> count: for a folder 'My Games', write <code>cd "My Games"</code> (with the quotes).</li>
+<li>🐍 In Python, the <b>spaces at the start of lines</b> (the indentation) are part of the code — keep the same alignment as the example!</li>
+</ul></div>
+
+<div class="pagebreak"></div>
+<h1>🛠️ Learn to code your own games</h1>
+
+<div class="tip">🇫🇷 <b>Heads up:</b> the little <code>#</code> comments inside the code are written in
+<b>French</b> — a tiny bonus! Read them as clues, or translate them as you learn. The code itself
+works exactly the same in any language.</div>
+
+<h2>📝 First: a good code editor — <code>micro</code></h2>
+<p>To write code, <b><code>micro</code></b> is much handier than <code>nano</code>:
+it <b>colours the code</b>, shows line numbers, and uses the normal shortcuts.</p>
+<div class="cmd"><b>micro serpent.py</b>     <i># opens (or creates) the file</i></div>
+<table>
+<tr><th>Keys</th><th>Action</th></tr>
+<tr><td><code>Ctrl + S</code></td><td>💾 Save</td></tr>
+<tr><td><code>Ctrl + Q</code></td><td>🚪 Quit</td></tr>
+<tr><td><code>Ctrl + Z</code></td><td>↩️ Undo &nbsp;·&nbsp; <code>Ctrl+C</code>/<code>Ctrl+V</code> copy/paste</td></tr>
+</table>
+<div class="lead">🧠 <b>The golden rule:</b> don't copy everything at once! For each challenge, do
+<b>one step at a time</b>: write the small bit, <span class="run">run it</span>, watch what
+happens, understand, <b>then</b> add the next step. That's how you really learn. 🌱</div>
+<div class="tip">🐍 <b>Python trap #1: indentation.</b> The <b>spaces at the start of lines</b> are part of
+the code! Copy them carefully and keep the same alignment as the example. Good news:
+<code>micro</code> colours the code and helps you spot anything off.</div>
+
+<div class="lead">🔁 <b>The magic loop: write → save → quit → run.</b>
+Every time you want to try your code, you always do the same 5 moves:
+<table>
+<tr><th>#</th><th>Move</th><th>How</th></tr>
+<tr><td>1️⃣</td><td>I write my code</td><td>in <code>micro</code></td></tr>
+<tr><td>2️⃣</td><td>💾 I save</td><td><code>Ctrl + S</code></td></tr>
+<tr><td>3️⃣</td><td>🚪 I quit the editor</td><td><code>Ctrl + Q</code></td></tr>
+<tr><td>4️⃣</td><td>▶️ I run the game</td><td>I type <code>python3 serpent.py</code> then <b>Enter</b></td></tr>
+<tr><td>5️⃣</td><td>✏️ I want to change it</td><td>I reopen <code>micro serpent.py</code>, change, and start again at 2️⃣!</td></tr>
+</table>
+👉 In this whole guide, the sign <span class="run">▶</span> ALWAYS means:
+'<b>save (<code>Ctrl+S</code>), quit (<code>Ctrl+Q</code>), then type <code>python3 filename.py</code> and Enter</b>'.
+The <b>file name</b> is the one you opened (here <code>serpent.py</code>).</div>
+
+<!-- ===== CHALLENGE 0: SNAKE ===== -->
+<div class="defi">
+<h2>🐍 Challenge 0 — Code Snake (start here!)</h2>
+<p>We use <b>curses</b> (to draw in the terminal). <code>micro serpent.py</code></p>
+
+<div class="step"><b class="n">Step 1</b><br>
+Open a curses window that waits for a key:
+<pre class="code">%%snake_1%%</pre>
+<div class="run">▶ python3 serpent.py</div> → a message, then a key to exit.</div>
+
+<div class="step"><b class="n">Step 2</b><br>
+A dot <code>#</code> that moves with the <b>arrow keys</b> (q to quit):
+<pre class="code">%%snake_2%%</pre>
+<div class="run">▶ python3 serpent.py</div> (don't forget <code>Ctrl+S</code> first!) → you drive a dot!</div>
+
+<div class="step"><b class="n">Step 3</b><br>
+A real snake: a <b>list</b> of segments that moves (we add a head, remove the tail):
+<pre class="code">%%snake_3%%</pre>
+<div class="run">▶ python3 serpent.py</div> (save first: <code>Ctrl+S</code>) → the snake glides on its own.</div>
+
+<div class="step"><b class="n">Step 4</b><br>
+The <b>apple</b> <code>*</code> and the <b>score</b>: when it eats, it grows.
+<pre class="code">%%snake_4%%</pre>
+<div class="run">▶ python3 serpent.py</div> (save first: <code>Ctrl+S</code>) → eat the apples, the snake gets longer.</div>
+
+<div class="step"><b class="n">Step 5 — game over</b><br>
+We add 'Game Over' if you hit a wall or your own body:
+<pre class="code">%%snake_5%%</pre>
+<div class="run">▶ python3 serpent.py</div> → the full game! 🎉</div>
+<div class="try">✦ <b>Your turn:</b> change <code>timeout(120)</code> to <code>timeout(60)</code> → the snake goes 2× faster!</div>
+</div>
+
+<!-- ===== CHALLENGE 1: DEMOSCENE ===== -->
+<div class="defi">
+<h2>🌈 Challenge 1 — A 'plasma' demo</h2>
+<p>The <b>demoscene</b> is the art of programming beautiful animations. We start from scratch and
+build step by step. Create the file: <code>micro plasma.py</code></p>
+
+<div class="step"><b class="n">Step 1</b><br>
+Show coloured squares. The secret code <code>\033[48;5;Nm</code> = 'background colour #N'.
+<pre class="code">%%plasma_1%%</pre>
+<div class="run">▶ python3 plasma.py</div> → you see 3 coloured squares.</div>
+
+<div class="step"><b class="n">Step 2</b><br>
+A <b>loop</b> to make a gradient line (one colour per column):
+<pre class="code">%%plasma_2%%</pre>
+<div class="run">▶ python3 plasma.py</div> → a lovely rainbow line.</div>
+
+<div class="step"><b class="n">Step 3</b><br>
+Two nested loops = a whole screen (rows × columns):
+<pre class="code">%%plasma_3%%</pre>
+<div class="run">▶</div> → a diagonal pattern.</div>
+
+<div class="step"><b class="n">Step 4</b><br>
+We replace the colour maths with <b>sines</b> (waves!):
+<pre class="code">%%plasma_4%%</pre>
+<div class="run">▶</div> → soft waves of colour.</div>
+
+<div class="step"><b class="n">Step 5 — animation!</b><br>
+We put it all in a <code>while</code> loop with time <code>t</code> moving forward:
+<pre class="code">%%plasma_5%%</pre>
+<div class="run">▶ python3 plasma.py</div> (Ctrl+C to stop) → it <b>moves</b>! 🎉</div>
+<div class="try">✦ <b>Your turn:</b> change the <code>0.1</code> and <code>0.08</code> in step 5. Each number gives a different animation!</div>
+</div>
+
+<!-- ===== CHALLENGE 2: MUSIC ===== -->
+<div class="defi">
+<h2>🎹 Challenge 2 — Make music</h2>
+<p>We'll create <b>sound</b> with maths. Install the tools first:</p>
+<div class="cmd"><b>pkg install python3-sounddevice python3-numpy</b></div>
+<p>Then: <code>micro musique.py</code></p>
+
+<div class="step"><b class="n">Step 1</b><br>
+A single sound: a sine wave at 440 Hz (the note 'A').
+<pre class="code">%%music_1%%</pre>
+<div class="run">▶ python3 musique.py</div> → you hear an 'A'! 🔊</div>
+
+<div class="step"><b class="n">Step 2</b><br>
+We tidy that into a <b>function</b> <code>note()</code> and play 3 notes:
+<pre class="code">%%music_2%%</pre>
+<div class="run">▶</div> → C, E, G one after another.</div>
+
+<div class="step"><b class="n">Step 3 — your melody</b><br>
+A dictionary of notes + a list = a real score:
+<pre class="code">%%music_3%%</pre>
+<div class="run">▶ python3 musique.py</div></div>
+<div class="try">✦ <b>Your turn:</b> write your own <code>melodie</code>! (try <code>["do","do","sol","sol","la","la","sol"]</code> = Twinkle Twinkle 🌙)</div>
+</div>
+
+<!-- ===== CHALLENGE 3: BREAKOUT ===== -->
+<div class="defi">
+<h2>🧱 Challenge 3 — Code a Breakout</h2>
+<p><code>micro casse-brique.py</code></p>
+
+<div class="step"><b class="n">Step 1</b><br>
+A <b>paddle</b> <code>====</code> at the bottom, moving left/right:
+<pre class="code">%%brick_1%%</pre>
+<div class="run">▶</div> → you move the paddle.</div>
+
+<div class="step"><b class="n">Step 2</b><br>
+The <b>ball</b> <code>O</code> bouncing off the walls and the paddle (and you lose at the bottom):
+<pre class="code">%%brick_2%%</pre>
+<div class="run">▶</div> → send the ball back with the paddle!</div>
+
+<div class="step"><b class="n">Step 3 — the bricks</b><br>
+We add the <b>bricks</b> <code>[]</code> to break, the score, and the win:
+<pre class="code">%%brick_3%%</pre>
+<div class="run">▶ python3 casse-brique.py</div> → break them all! 🎉</div>
+<div class="try">✦ <b>Challenge:</b> add <b>3 lives</b> before you lose, instead of ending on the 1st ball.</div>
+</div>
+
+<!-- ===== CHALLENGE 4: LODE RUNNER ===== -->
+<div class="defi">
+<h2>🪜 Challenge 4 — Lode Runner (big challenge!)</h2>
+<p>The hardest. You run, climb ladders <code>H</code>, fall, collect gold <code>$</code>.
+<code>micro lode.py</code></p>
+
+<div class="step"><b class="n">Step 1</b><br>
+The <b>map</b> and a character <code>@</code> that moves without going through walls <code>X</code>:
+<pre class="code">%%lode_1%%</pre>
+<div class="run">▶</div> → you move around the scene (but you still fly).</div>
+
+<div class="step"><b class="n">Step 2 — gravity, ladders, gold</b><br>
+We add <b>gravity</b> (you fall), <b>ladders</b> (Up arrow) and <b>gold</b>:
+<pre class="code">%%lode_2%%</pre>
+<div class="run">▶ python3 lode.py</div> → collect the 4 nuggets! 🏆</div>
+
+<h3>🗺️ Build your own levels</h3>
+<p>The map is just the <code>NIVEAU</code> list: each line of text = one row of the scene.
+Redraw it in <code>micro</code> with these 4 symbols:</p>
+<table>
+<tr><th>Symbol</th><th>What it is</th></tr>
+<tr><td><code>X</code></td><td>a wall / the floor — you walk on it, you don't go through it</td></tr>
+<tr><td><code>H</code></td><td>a ladder — Up arrow to climb</td></tr>
+<tr><td><code>$</code></td><td>a gold nugget to collect</td></tr>
+<tr><td><code>.</code></td><td>empty space (air)</td></tr>
+</table>
+<p>Example to copy, then invent your own:</p>
+<pre class="code">%%lode_level%%</pre>
+<div class="warn"><b>3 rules to follow:</b>
+<ul>
+<li>All lines have <b>exactly the same length</b> (otherwise the game crashes).</li>
+<li>The player starts <b>top-left</b> → leave that cell empty (a <code>.</code>).</li>
+<li>Count your <code>$</code> and put that number in <code>if score &gt;= 4</code> (replace the <code>4</code>!) to win at the right time.</li>
+</ul></div>
+
+<h3>🚀 Go further (your turn to code!)</h3>
+<p><b>🗺️ Chain several levels</b> — store several maps in a list, and move to the next one when all
+the gold is collected:</p>
+<pre class="code">NIVEAUX = [NIVEAU1, NIVEAU2, NIVEAU3]   # plusieurs cartes
+niveau = 0
+g = [list(r) for r in NIVEAUX[niveau]]
+# quand tout l'or est pris :
+#   niveau += 1
+#   g = [list(r) for r in NIVEAUX[niveau]]   # charge la carte suivante
+#   py, px = 1, 1                             # replace le joueur en haut</pre>
+
+<p><b>🕳️ Dig a hole</b> (Lode Runner's special power!) with the <code>d</code> key:</p>
+<pre class="code">if k == ord('d'):
+    if case(g, py+1, px+1) == 'X':   # s'il y a un sol devant-dessous
+        g[py+1][px+1] = '.'          # on le casse !</pre>
+
+<p><b>👾 Add an enemy</b> — give it a position and make it close in on you each turn:</p>
+<pre class="code">ey, ex = 1, 20            # position de depart de l'ennemi (au debut du jeu)
+# ... dans la boucle :
+if ex &lt; px: ex += 1       # il se rapproche en x
+elif ex &gt; px: ex -= 1
+stdscr.addch(ey, ex, 'E')             # on le dessine
+if (ey, ex) == (py, px): break        # attrape ! game over</pre>
+
+<div class="try">✦ <b>The method:</b> add <b>one single</b> idea, run, watch. If it breaks, read the error
+message (it often points to the line!) and fix it. That's programming. 🌱</div>
+</div>
+
+<hr>
+%%BONUS%%
+<h2>📖 Mini-glossary</h2>
+<table>
+<tr><td><b>command</b></td><td>an order you type (e.g. <code>ls</code>)</td></tr>
+<tr><td><b>folder</b></td><td>a 'drawer' that holds files</td></tr>
+<tr><td><b>file</b></td><td>a document: text, music, program…</td></tr>
+<tr><td><b>terminal / console</b></td><td>the screen where you type commands</td></tr>
+<tr><td><b>variable</b></td><td>a box that holds a value (<code>score = 0</code>)</td></tr>
+<tr><td><b>loop</b></td><td>repeating something (<code>for</code>, <code>while</code>)</td></tr>
+<tr><td><b>function</b></td><td>a reusable block of code (<code>def note(...)</code>)</td></tr>
+<tr><td><b>list</b></td><td>several things in order (<code>[1, 2, 3]</code>)</td></tr>
+<tr><td><b>install</b></td><td>add a new program (<code>pkg install</code>)</td></tr>
+</table>
+
+<p class="footer">🐧 Well done %%NAME%%! Every little step makes you stronger. Keep exploring and creating!</p>
+</body></html>
+'''
+
+
+EXPL_EN = {
+"plasma_1": "<li><code>print(...)</code> shows something on screen.</li>"
+            "<li><code>\\033[48;5;201m</code> = secret code 'background colour #201'.</li>"
+            "<li><code>\\033[0m</code> resets the colour (otherwise everything stays coloured).</li>",
+"plasma_2": "<li><code>for x in range(30)</code> repeats 30 times (x = 0,1,2…29).</li>"
+            "<li>Each turn we add a coloured space; colour <code>16+x</code> changes every column.</li>"
+            "<li>We print the whole line at the end.</li>",
+"plasma_3": "<li><code>for y</code> walks the rows, <code>for x</code> the columns: a grid!</li>"
+            "<li><code>(x+y) % 200</code> gives a number that changes with position → a diagonal gradient.</li>"
+            "<li><code>%</code> = the remainder of a division (here, 0 to 199).</li>",
+"plasma_4": "<li><code>math.sin(...)</code> is a 'wave' function that goes up and down.</li>"
+            "<li>We add a wave on x and a wave on y → ripples.</li>"
+            "<li><code>int(...)</code> rounds to a whole number to pick the colour.</li>",
+"plasma_5": "<li><code>while True:</code> = endless loop: the heart of the animation.</li>"
+            "<li><code>\\033[H</code> moves the cursor back to the top to redraw on top → animated effect.</li>"
+            "<li><code>t += 0.2</code> moves 'time' forward → the waves travel; <code>time.sleep</code> waits between two frames.</li>"
+            "<li><code>except KeyboardInterrupt</code> = quit cleanly with Ctrl+C.</li>",
+"music_1": "<li><code>np.linspace</code> creates lots of tiny moments (the sound 'samples').</li>"
+           "<li><code>np.sin(2*np.pi*440*t)</code> = a wave at 440 vibrations/second = the note 'A'.</li>"
+           "<li><code>sd.play</code> plays the sound, <code>sd.wait</code> waits until it finishes.</li>",
+"music_2": "<li><code>def note(freq)</code> creates a reusable <b>function</b> that builds a note.</li>"
+           "<li><code>np.concatenate([...])</code> joins several notes end to end.</li>"
+           "<li>262, 330, 392 = the frequencies of C, E, G.</li>",
+"music_3": "<li><code>notes = {...}</code> = a <b>dictionary</b>: each note name → its frequency.</li>"
+           "<li><code>melodie = [...]</code> = the list of notes to play, in order.</li>"
+           "<li><code>[note(notes[n]) for n in melodie]</code> builds the sound of each note in the list.</li>",
+"snake_1": "<li><code>curses.wrapper(main)</code> sets up the 'game' screen then runs <code>main</code>.</li>"
+           "<li><code>addstr(row, col, text)</code> writes at an exact spot.</li>"
+           "<li><code>getch()</code> waits for you to press a key.</li>",
+"snake_2": "<li><code>nodelay(True)</code> + <code>timeout(120)</code>: the game doesn't wait, it moves by itself every 120 ms.</li>"
+           "<li>The arrow keys change the direction <code>dy, dx</code>.</li>"
+           "<li><code>y += dy</code> moves the dot; <code>clear()</code> wipes before redrawing; <code>max/min</code> keep it on screen.</li>",
+"snake_3": "<li><code>serpent</code> = a list of cells (the head is first).</li>"
+           "<li><code>insert(0, …)</code> adds a new head, <code>pop()</code> removes the tail → it moves.</li>"
+           "<li><code>and dy == 0</code> stops it from turning back on itself.</li>",
+"snake_4": "<li><code>random.randint</code> places the apple at random.</li>"
+           "<li>If the head reaches the apple: +1 score and we do NOT remove the tail → the snake grows.</li>"
+           "<li><code>border()</code> draws the frame, the score shows at the top.</li>",
+"snake_5": "<li><code>if ty in (0, h-1) …</code> checks if you hit a wall or your own body → <code>break</code> (end).</li>"
+           "<li>After the loop, we show 'Game over' and wait for a key.</li>",
+"brick_1": "<li><code>rx</code> = paddle position, <code>rw</code> = its width.</li>"
+           "<li>The arrows change <code>rx</code>; <code>max/min</code> keep it on screen.</li>"
+           "<li><code>\"=\" * rw</code> draws the paddle (rw times the = sign).</li>",
+"brick_2": "<li><code>bx, by</code> = ball position; <code>ddx, ddy</code> = its direction.</li>"
+           "<li><code>ddx = -ddx</code> flips the direction when it hits a wall → bounce.</li>"
+           "<li>On the paddle it goes back up; if it goes past the bottom → <code>break</code> (lost).</li>",
+"brick_3": "<li><code>briques</code> = a set of positions to break.</li>"
+           "<li>When the ball hits a brick: remove it (<code>discard</code>), it bounces, +1 score.</li>"
+           "<li><code>if not briques:</code> → all broken → you win!</li>",
+"lode_1": "<li><code>NIVEAU</code> = the map in letters (X=wall, H=ladder, $=gold, .=empty).</li>"
+          "<li><code>case(g,y,x)</code> looks at what's at a spot (wall outside the map).</li>"
+          "<li>We only move if the target cell isn't a wall <code>X</code>.</li>",
+"lode_2": "<li><b>Gravity</b>: if there's no floor or ladder under your feet, you fall (<code>py += 1</code>).</li>"
+          "<li>The Up arrow only works on a ladder <code>H</code>.</li>"
+          "<li><code>if g[py][px] == '$'</code>: pick up the gold and replace it with empty space.</li>",
+"cave_1": "<li><code>random.random() &lt; 0.45</code> → 45% chance of being rock.</li>"
+          "<li>The grid is a table of 1 (rock) and 0 (empty).</li>"
+          "<li>We print <code>#</code> for rock, a space for empty.</li>",
+"cave_2": "<li>For each cell, we count its rock neighbours.</li>"
+          "<li>5 rock-neighbours or more → the cell becomes rock, otherwise it becomes empty.</li>"
+          "<li>Repeated 5 times, it 'carves' real caverns: a <b>cellular automaton</b>!</li>",
+"cave_3": "<li><code>generer()</code> builds a new cave every run.</li>"
+          "<li>We look for an empty cell to place the explorer <code>@</code>.</li>"
+          "<li>We only move if the destination cell is empty (not rock).</li>",
+}
+
+
+SPELEO_EN = r'''
+<div class="defi" style="border-color:#c9a06a;background:#fbf6ef">
+<h2 style="color:#7a4a1f;border-color:#e3d2bb">🕳️ Cave special — for you!</h2>
+<p>Love caves? Here's how to explore them… and even <b>create your own</b>! 🔦</p>
+<h3>🎮 Cave games</h3>
+<p>The very first adventure game in history takes place in a <b>real cave</b> (Mammoth Cave)!</p>
+<div class="cmd"><b>pkg install bsd-games</b>
+<b>adventure</b>     <i># explore the cave by typing words: go, look, get…</i>
+<b>wump</b>          <i># 'Hunt the Wumpus': track the monster through the tunnels</i></div>
+<h3>🗺️ Code: generate your own cave!</h3>
+<p>We build a random cave, like in real games. <code>micro grotte.py</code></p>
+<div class="step"><b class="n">Step 1</b><br>
+First, random rock (<code>#</code> = rock, space = empty):
+<pre class="code">%%cave_1%%</pre>
+<div class="run">▶ python3 grotte.py</div> → a cloud of dots… not a cave yet.</div>
+<div class="step"><b class="n">Step 2 — the magic</b><br>
+We 'smooth' it with a <b>cellular automaton</b>, repeated 5 times → it carves caverns:
+<pre class="code">%%cave_2%%</pre>
+<div class="run">▶ python3 grotte.py</div> → real caves appear! 🌀</div>
+<div class="step"><b class="n">Step 3 — explore it</b><br>
+We add an explorer <code>@</code> who walks the tunnels (arrow keys):
+<pre class="code">%%cave_3%%</pre>
+<div class="run">▶ python3 grotte.py</div> → wander through YOUR cave! 🧭</div>
+<div class="try">✦ <b>Your turn:</b> run it again → a <b>new cave</b> every time! Add treasures <code>$</code> to find, like in Lode Runner.</div>
+</div>
+'''
+
+MUSIQUE_EN = r'''
+<div class="defi" style="border-color:#c47ab0;background:#fdf3f9">
+<h2 style="color:#8a2d6b;border-color:#edcfe2">🎼 Music special — for you!</h2>
+<p>Want to compose? Two ways: a super-simple console one, and the real studio of coder-musicians. 🎶</p>
+
+<h3>🎵 Compose in 'ABC' (super simple)</h3>
+<p>ABC means writing a melody as <b>text</b>: each letter is a note! Install the tools:</p>
+<div class="cmd"><b>pkg install abcMIDI timidity++</b></div>
+<p>Create <code>micro chanson.abc</code> and write your first melody:</p>
+<pre class="code">X:1
+T:My first song
+M:4/4
+L:1/4
+K:C
+C D E F | G A B c | c B A G | F E D C |</pre>
+<div class="expl">🔍 <b>What it means:</b><ul>
+<li><code>T:</code> = the title &nbsp;·&nbsp; <code>K:C</code> = the key (C major).</li>
+<li><code>C D E F G A B</code> = do re mi fa sol la si ; lowercase <code>c</code> = one octave higher.</li>
+<li>The <code>|</code> separates the bars.</li>
+</ul></div>
+<p>Turn it into music and listen:</p>
+<div class="cmd"><b>abc2midi chanson.abc -o chanson.mid</b>
+<b>timidity chanson.mid</b>     <i># plays your tune! 🔊</i></div>
+<div class="try">✦ <b>Your turn:</b> change the notes, add bars. Tons of tutorials on <b>abcnotation.com</b>!</div>
+
+<h3>🚀 Sonic Pi (the coder-musicians' studio)</h3>
+<p>Sonic Pi lets you compose <b>by coding</b>, with sounds and loops, and it has <b>lots of built-in
+tutorials</b>. It installs in a special way → <b>ask an adult</b> to set it up once. Then launch it
+fullscreen:</p>
+<div class="cmd"><b>cage -- sonic-pi</b></div>
+<p>Your first line of music in Sonic Pi:</p>
+<pre class="code">play 60      # play a note
+sleep 1      # wait 1 second
+play 64
+play 67      # C - E - G !</pre>
+<div class="try">✦ Open Sonic Pi's <b>'Tutorial' menu</b>: dozens of lessons, from the simplest to the wildest! 🎹</div>
+</div>
+'''
+
+
+def render(template, expl, expl_title, bonus, name, user):
+    """Remplit un template (FR ou EN) avec le code partagé (compile-testé)."""
+    out = (template.replace("%%NAME%%", name)
+                   .replace("%%USER%%", user)
+                   .replace("%%BONUS%%", bonus))
+    for key in CODES:
+        block = f'<pre class="code">%%{key}%%</pre>'
+        e = ""
+        if key in expl:
+            e = (f'<div class="expl">{expl_title}<ul>' + expl[key] + '</ul></div>')
+        out = out.replace(block, f'<pre class="code">{C(key)}</pre>{e}')
+    return out
+
+
+if __name__ == "__main__":
+    import os
+    # Auto-vérification : chaque bout de code doit compiler.
+    for k, v in CODES.items():
+        compile(v, k, "exec")
+    print(f"✅ {len(CODES)} bouts de code valides (compilent)")
+    here = os.path.dirname(os.path.abspath(__file__))
+
+    fr = render(TEMPLATE, EXPL, "🔍 <b>Ce que fait le code :</b>",
+                SPELEO_HTML + MUSIQUE_HTML, "codeuse / codeur 🐧", "ton-compte")
+    en = render(TEMPLATE_EN, EXPL_EN, "🔍 <b>What the code does:</b>",
+                SPELEO_EN + MUSIQUE_EN, "coder 🐧", "your-login")
+    for lang, html in (("fr", fr), ("en", en)):
+        path = os.path.join(here, f"guide-{lang}.html")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(html)
+        print("écrit :", path)
