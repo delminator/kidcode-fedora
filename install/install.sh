@@ -33,7 +33,14 @@ EOF
 chmod +x "$HOME/.local/bin/kidcode"
 echo "✓ commande 'kidcode' installée dans ~/.local/bin"
 
-# 5. entrée de menu (lanceur graphique) — démarre le serveur ET ouvre la page web
+# 5. icône custom + entrée de menu (démarre le serveur ET ouvre la page web)
+ICONDIR="$HOME/.local/share/icons/hicolor/scalable/apps"
+mkdir -p "$ICONDIR"
+if install -m 0644 "$HERE/assets/kidcode.svg" "$ICONDIR/kidcode.svg" 2>/dev/null; then
+  ICON="$ICONDIR/kidcode.svg"            # chemin absolu = fiable sur tous les lanceurs
+else
+  ICON="applications-education"
+fi
 mkdir -p "$HOME/.local/share/applications"
 DESKTOP="$HOME/.local/share/applications/kidcode.desktop"
 cat > "$DESKTOP" <<EOF
@@ -43,16 +50,17 @@ Name=KidCode
 GenericName=Tableau de bord parental
 Comment=Temps d'écran, verrouillage et activité des PC enfants (ouvre la page web)
 Exec=$HOME/.local/bin/kidcode
-Icon=applications-education
+Icon=$ICON
 Terminal=false
 Categories=Education;
 Keywords=kidcode;enfants;parental;temps;ecran;classe;dashboard;controle;
 StartupNotify=false
 EOF
 chmod +x "$DESKTOP"
-# rafraîchir le menu/lanceur pour qu'il apparaisse tout de suite
+# rafraîchir icônes + menu pour que ça apparaisse tout de suite
+gtk-update-icon-cache "$HOME/.local/share/icons/hicolor" >/dev/null 2>&1 || true
 update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
-echo "✓ raccourci 'KidCode' ajouté au lanceur ($DESKTOP)"
+echo "✓ raccourci 'KidCode' (+ icône) ajouté au lanceur ($DESKTOP)"
 
 echo
 echo "✅ Installé."

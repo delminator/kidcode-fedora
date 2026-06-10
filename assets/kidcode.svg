@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6d5cff"/>
+      <stop offset="0.55" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#06b6d4"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.3" cy="0.25" r="0.9">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- fond arrondi + reflet -->
+  <rect x="0" y="0" width="256" height="256" rx="58" fill="url(#bg)"/>
+  <rect x="0" y="0" width="256" height="256" rx="58" fill="url(#glow)"/>
+
+  <!-- petites étoiles -->
+  <g fill="#ffffff" opacity="0.9">
+    <path d="M44 54 l4 9 9 4 -9 4 -4 9 -4 -9 -9 -4 9 -4z"/>
+    <path d="M214 80 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3z"/>
+    <circle cx="206" cy="176" r="3.2"/>
+    <circle cx="40" cy="150" r="2.6"/>
+  </g>
+
+  <!-- chevrons de code -->
+  <g fill="none" stroke="#ffffff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" opacity="0.55">
+    <path d="M70 116 L52 134 L70 152"/>
+    <path d="M186 116 L204 134 L186 152"/>
+  </g>
+
+  <!-- pingouin -->
+  <g>
+    <!-- corps noir -->
+    <ellipse cx="128" cy="142" rx="58" ry="70" fill="#1b2433"/>
+    <!-- ventre blanc -->
+    <ellipse cx="128" cy="152" rx="40" ry="56" fill="#ffffff"/>
+    <!-- ailes -->
+    <path d="M74 130 q-12 28 8 56 q6 -34 4 -58z" fill="#1b2433"/>
+    <path d="M182 130 q12 28 -8 56 q-6 -34 -4 -58z" fill="#1b2433"/>
+    <!-- yeux -->
+    <ellipse cx="110" cy="108" rx="15" ry="17" fill="#ffffff"/>
+    <ellipse cx="146" cy="108" rx="15" ry="17" fill="#ffffff"/>
+    <circle cx="113" cy="111" r="6.5" fill="#1b2433"/>
+    <circle cx="143" cy="111" r="6.5" fill="#1b2433"/>
+    <!-- bec -->
+    <path d="M116 126 L140 126 L128 144 Z" fill="#ff9f1c"/>
+    <!-- pieds -->
+    <ellipse cx="106" cy="214" rx="22" ry="10" fill="#ff9f1c"/>
+    <ellipse cx="150" cy="214" rx="22" ry="10" fill="#ff9f1c"/>
+  </g>
+</svg>
