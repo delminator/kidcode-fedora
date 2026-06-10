@@ -33,6 +33,11 @@ Trois parties :
 - ⚙️ **Page Réglages** — ajouter/modifier/supprimer des machines (IP, compte, mot de passe root)
   depuis le navigateur ; les mots de passe sont stockés en local (chmod 600) et **jamais envoyés au
   navigateur ni committés**.
+- 🔐 **Config chiffrée** — protège `machines.conf` avec un **mot de passe maître** (AES + PBKDF2
+  via `cryptography`) ; le tableau de bord le demande une fois par session.
+- 🌐 **Suit les changements d'IP (DHCP)** — donne à chaque PC un **nom mDNS/DNS** (ex. `salon.local`) :
+  le tableau de bord le joint par son nom même si l'IP change ; un bouton **🔄 Résoudre** met à jour
+  l'IP stockée. L'agent publie le nom via avahi.
 - 📘 **Guide de code bilingue hors-ligne** — aucune connexion requise ; imprime et c'est parti.
 - 🪟 **Tableau de bord multiplateforme** — Python pur + paramiko, tourne sous Linux et Windows.
 
@@ -141,7 +146,9 @@ kidcode-fedora/
 
 - Le tableau de bord écoute **uniquement sur 127.0.0.1** — jamais exposé au réseau.
 - Les **mots de passe** des machines vivent **uniquement dans `machines.conf`** (chmod 600),
-  qui est **git-ignoré**. Ils ne sont jamais envoyés au navigateur.
+  qui est **git-ignoré**. Ils ne sont jamais envoyés au navigateur. Tu peux en plus **chiffrer**
+  le fichier avec un mot de passe maître depuis la page Réglages (→ `machines.conf.enc`,
+  AES + PBKDF2-SHA256, 600k itérations).
 - SSH utilise paramiko avec le mot de passe root que tu définis ; prévu pour **tes PC familiaux**.
 
 ## 🤝 Contribuer

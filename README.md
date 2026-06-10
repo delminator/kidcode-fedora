@@ -33,6 +33,11 @@ It comes in two halves:
   time-per-app.
 - ⚙️ **Settings page** — add/edit/remove machines (IP, account, root password) from the browser;
   passwords are stored locally (chmod 600) and **never sent to the browser or committed**.
+- 🔐 **Encrypted config** — optionally protect `machines.conf` with a **master password**
+  (AES + PBKDF2 via `cryptography`); the dashboard asks for it once per session.
+- 🌐 **Follows DHCP changes** — give each PC an **mDNS/DNS name** (e.g. `salon.local`) and the
+  dashboard reaches it by name even when its IP changes; a **🔄 Resolve** button updates the
+  stored IP. The agent publishes the name via avahi.
 - 📘 **Bilingual offline coding guide** — no internet needed; print it and go.
 - 🪟 **Cross-platform dashboard** — pure-Python + paramiko, runs on Linux and Windows.
 
@@ -142,7 +147,8 @@ kidcode-fedora/
 
 - The dashboard listens **only on 127.0.0.1** — never exposed to the network.
 - Machine **passwords live only in `machines.conf`** (chmod 600), which is **git-ignored**.
-  They are never sent to the browser.
+  They are never sent to the browser. You can additionally **encrypt** the file with a master
+  password from the Settings page (→ `machines.conf.enc`, AES + PBKDF2-SHA256, 600k iterations).
 - SSH uses paramiko with the root password you set; intended for **your own family PCs**.
 
 ## 🤝 Contributing

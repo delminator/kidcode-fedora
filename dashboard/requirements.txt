@@ -1,3 +1,4 @@
 # kidcode-fedora dashboard — Python dependencies
 # Install: pip install -r requirements.txt
-paramiko>=3.0
+paramiko>=3.0        # SSH (cross-platform, replaces sshpass)
+cryptography>=41.0   # encrypt machines.conf with a master password

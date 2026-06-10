@@ -2,7 +2,9 @@
 # Le fichier de config contient les mots de passe root et les IP des machines.
 # The config file holds root passwords and machine IPs.
 machines.conf
+machines.conf.enc
 **/machines.conf
+**/machines.conf.enc
 *.key
 *.pem
 *.env

@@ -29,6 +29,12 @@ try:
 except ImportError:
     paramiko = None
 
+try:
+    import cryptography  # noqa: F401
+    _HAS_CRYPTO = True
+except ImportError:
+    _HAS_CRYPTO = False
+
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("KIDCODE_PORT") or 8765)
 # Dossier de config multiplateforme (Linux/Windows). Override : env KIDCODE_DIR.
@@ -43,12 +49,24 @@ PKG_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._+-]*$")
 def _ssh_client(m, timeout=8):
     if paramiko is None:
         raise RuntimeError("paramiko manquant — installez : pip install paramiko")
-    cli = paramiko.SSHClient()
-    cli.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # = ssh accept-new
-    cli.connect(m["ip"], username=m["user"], password=m["pwd"],
-                timeout=timeout, banner_timeout=timeout, auth_timeout=timeout,
-                look_for_keys=False, allow_agent=False)
-    return cli
+    # On essaie le nom mDNS/DNS d'abord (suit l'IP), puis la dernière IP connue.
+    hosts = [h for h in (m.get("dns"), m.get("ip")) if h]
+    if not hosts:
+        raise RuntimeError("aucune adresse (IP ou nom mDNS/DNS)")
+    last = None
+    for h in hosts:
+        try:
+            cli = paramiko.SSHClient()
+            cli.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # = ssh accept-new
+            cli.connect(h, username=m["user"], password=m["pwd"],
+                        timeout=timeout, banner_timeout=timeout, auth_timeout=timeout,
+                        look_for_keys=False, allow_agent=False)
+            return cli
+        except paramiko.AuthenticationException:
+            raise                       # mauvais mot de passe : inutile d'essayer l'autre
+        except Exception as e:  # noqa  (injoignable sur ce host → on tente le suivant)
+            last = e
+    raise last
 
 
 def _ssh_err(e):
@@ -92,11 +110,114 @@ def ssh_put_text(m, text, remote_path, connect_timeout=8):
         cli.close()
 
 
+# ── Coffre chiffré : machines.conf.enc protégé par un mot de passe maître ──
+#    Au repos, IP + mots de passe sont chiffrés (Fernet/AES + PBKDF2-SHA256).
+#    Le mot de passe maître n'est jamais stocké ; la clé dérivée vit en mémoire
+#    le temps de la session (déverrouillage via la page).
+ENC_PATH = CONFIG_DIR / "machines.conf.enc"
+_VAULT = {"key": None, "salt": None}
+
+
+def _derive_key(password, salt):
+    import base64
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+    kdf = PBKDF2HMAC(algorithm=hashes.SHA256(), length=32, salt=salt, iterations=600_000)
+    return base64.urlsafe_b64encode(kdf.derive(password.encode("utf-8")))
+
+
+def is_encrypted():
+    return ENC_PATH.exists()
+
+
+def is_locked():
+    return is_encrypted() and _VAULT["key"] is None
+
+
+def vault_state():
+    return {"encrypted": is_encrypted(), "locked": is_locked(),
+            "has_plain": MACHINES_CONF.exists(), "crypto": _HAS_CRYPTO}
+
+
+def unlock_vault(password):
+    import base64
+    from cryptography.fernet import Fernet, InvalidToken
+    try:
+        salt_b64, token = ENC_PATH.read_bytes().split(b"\n", 1)
+        salt = base64.b64decode(salt_b64)
+        key = _derive_key(password, salt)
+        Fernet(key).decrypt(token)            # InvalidToken si mauvais mot de passe
+        _VAULT["key"], _VAULT["salt"] = key, salt
+        return {"ok": True}
+    except InvalidToken:
+        return {"ok": False, "msg": "mot de passe maître incorrect"}
+    except Exception as e:  # noqa
+        return {"ok": False, "msg": str(e)}
+
+
+def lock_vault():
+    _VAULT["key"] = _VAULT["salt"] = None
+    return {"ok": True}
+
+
+def _read_conf_text():
+    if is_encrypted():
+        if _VAULT["key"] is None:
+            raise PermissionError("verrouillé")
+        from cryptography.fernet import Fernet
+        _, token = ENC_PATH.read_bytes().split(b"\n", 1)
+        return Fernet(_VAULT["key"]).decrypt(token).decode("utf-8")
+    return MACHINES_CONF.read_text() if MACHINES_CONF.exists() else ""
+
+
+def _write_conf_text(text):
+    if is_encrypted() or _VAULT["key"] is not None:
+        import base64
+        from cryptography.fernet import Fernet
+        if _VAULT["key"] is None:
+            raise PermissionError("verrouillé")
+        token = Fernet(_VAULT["key"]).encrypt(text.encode("utf-8"))
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        ENC_PATH.write_bytes(base64.b64encode(_VAULT["salt"]) + b"\n" + token)
+        try:
+            os.chmod(ENC_PATH, 0o600)
+        except OSError:
+            pass
+    else:
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        MACHINES_CONF.write_text(text)
+        try:
+            os.chmod(MACHINES_CONF, 0o600)
+        except OSError:
+            pass
+
+
+def enable_encryption(password):
+    """Chiffre la config existante avec un mot de passe maître, puis efface le clair."""
+    if not _HAS_CRYPTO:
+        return {"ok": False, "msg": "module 'cryptography' manquant (pip install cryptography)"}
+    if not password or len(password) < 4:
+        return {"ok": False, "msg": "mot de passe maître trop court (4 caractères min)"}
+    if is_encrypted():
+        return {"ok": False, "msg": "déjà chiffré"}
+    text = MACHINES_CONF.read_text() if MACHINES_CONF.exists() else ""
+    _VAULT["salt"] = os.urandom(16)
+    _VAULT["key"] = _derive_key(password, _VAULT["salt"])
+    _write_conf_text(text)                    # crée le .enc
+    try:
+        MACHINES_CONF.unlink()                # efface le clair
+    except OSError:
+        pass
+    return {"ok": True, "msg": "configuration chiffrée 🔐"}
+
+
 def load_machines():
     machines = []
-    if not MACHINES_CONF.exists():
-        return machines
-    for line in MACHINES_CONF.read_text().splitlines():
+    try:
+        text = _read_conf_text()
+    except PermissionError:
+        return machines                       # verrouillé : les routes gèrent le cas
+    for line in text.splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
             continue
@@ -109,8 +230,10 @@ def load_machines():
         account = parts[4] if len(parts) >= 5 and parts[4] else name
         # 6e champ optionnel = mode : "lockdown" (def.) ou "timetrack"
         mode = parts[5].lower() if len(parts) >= 6 and parts[5] else "lockdown"
+        # 7e champ optionnel = nom mDNS/DNS (ex: salon.local) suivant l'IP
+        dns = parts[6] if len(parts) >= 7 and parts[6] else ""
         machines.append({"name": name, "ip": ip, "user": user, "pwd": pwd,
-                         "account": account, "mode": mode})
+                         "account": account, "mode": mode, "dns": dns})
     return machines
 
 
@@ -126,29 +249,26 @@ def _clean(v, default=""):
 
 
 def _write_machines(machines):
-    """Réécrit machines.conf (chmod 600) à partir de la liste de dicts."""
-    MACHINES_CONF.parent.mkdir(parents=True, exist_ok=True)
+    """Réécrit la config (clair ou chiffrée) à partir de la liste de dicts."""
     lines = [CONF_HEADER]
     for m in machines:
         lines.append("|".join([m["name"], m["ip"], m["user"], m["pwd"],
-                               m.get("account", ""), m.get("mode", "timetrack")]))
-    MACHINES_CONF.write_text("\n".join(lines) + "\n")
-    try:
-        os.chmod(MACHINES_CONF, 0o600)
-    except OSError:
-        pass
+                               m.get("account", ""), m.get("mode", "timetrack"),
+                               m.get("dns", "")]))
+    _write_conf_text("\n".join(lines) + "\n")
 
 
 def save_machine(d):
     """Ajoute ou met à jour une machine. Mot de passe vide = on garde l'ancien."""
     name = _clean(d.get("name"))
     ip = _clean(d.get("ip"))
+    dns = _clean(d.get("dns"))
     user = _clean(d.get("user"), "root")
     account = _clean(d.get("account"))
     mode = _clean(d.get("mode"), "timetrack").lower()
     pwd = str(d.get("pwd") or "").replace("|", "").replace("\n", "").replace("\r", "")
-    if not name or not ip:
-        return {"ok": False, "msg": "nom et IP obligatoires"}
+    if not name or (not ip and not dns):
+        return {"ok": False, "msg": "nom + (IP ou nom mDNS/DNS) obligatoires"}
     if mode not in ("timetrack", "lockdown"):
         mode = "timetrack"
     machines = load_machines()
@@ -159,7 +279,7 @@ def save_machine(d):
         else:
             return {"ok": False, "msg": "mot de passe requis pour une nouvelle machine"}
     entry = {"name": name, "ip": ip, "user": user, "pwd": pwd,
-             "account": account, "mode": mode}
+             "account": account, "mode": mode, "dns": dns}
     if existing:
         machines = [entry if m["name"] == name else m for m in machines]
     else:
@@ -178,8 +298,34 @@ def delete_machine(name):
 def machines_public():
     """Liste des machines SANS mot de passe (jamais envoyé au navigateur)."""
     return [{"name": m["name"], "ip": m["ip"], "user": m["user"],
-             "account": m["account"], "mode": m["mode"], "has_pwd": bool(m["pwd"])}
+             "account": m["account"], "mode": m["mode"], "dns": m.get("dns", ""),
+             "has_pwd": bool(m["pwd"])}
             for m in load_machines()]
+
+
+def resolve_machine(name):
+    """Résout le nom mDNS/DNS d'une machine → IP courante, et met à jour le stockage."""
+    m = next((x for x in load_machines() if x["name"] == name), None)
+    if not m:
+        return {"ok": False, "msg": "machine inconnue"}
+    dns = m.get("dns")
+    if not dns:
+        return {"ok": False, "msg": "pas de nom mDNS/DNS pour cette machine"}
+    try:
+        # IPv4 d'abord (LAN), repli sur n'importe quelle famille
+        try:
+            infos = socket.getaddrinfo(dns, 22, family=socket.AF_INET,
+                                       type=socket.SOCK_STREAM)
+        except socket.gaierror:
+            infos = socket.getaddrinfo(dns, 22, type=socket.SOCK_STREAM)
+        ip = infos[0][4][0]
+    except Exception as e:  # noqa
+        return {"ok": False, "msg": f"résolution impossible de '{dns}' ({e})"}
+    changed = ip != m["ip"]
+    if changed:
+        save_machine({"name": m["name"], "ip": ip, "user": m["user"], "pwd": "",
+                      "account": m["account"], "mode": m["mode"], "dns": dns})
+    return {"ok": True, "ip": ip, "changed": changed, "dns": dns}
 
 
 def load_master():
@@ -336,20 +482,33 @@ td:first-child{white-space:nowrap;color:#ffd479;font-family:ui-monospace,monospa
 .muted{color:var(--mut)}.ok{color:var(--ok)}.bad{color:var(--bad)}
 .pill{font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--mut)}
 </style></head><body>
+<div id=unlock style="display:none;position:fixed;inset:0;background:rgba(8,20,40,.96);z-index:99;
+  align-items:center;justify-content:center;flex-direction:column;color:#fff;text-align:center">
+  <div style="font-size:54px">🔐</div>
+  <h2 style="color:#fff;border:none">Configuration verrouillée</h2>
+  <p class=muted style="color:#bcd">Entre ton mot de passe maître pour déverrouiller.</p>
+  <input id=u_pwd type=password placeholder="mot de passe maître"
+    style="font-size:16px;padding:10px 14px;border-radius:8px;border:none;width:260px"
+    onkeydown="if(event.key==='Enter')doUnlock()">
+  <div><button class=primary onclick=doUnlock() style="margin-top:12px">Déverrouiller</button></div>
+  <div id=u_msg class=status style="color:#f9b"></div>
+</div>
 <header><span style="font-size:22px">🛡️</span><h1>Gestion des PC enfants</h1>
 <span class=pill>console-first · liste blanche</span></header>
 <div class=wrap>
 
   <div class=card>
     <h2>⚙️ Réglages — mes PC enfants</h2>
-    <p class=muted>Renseigne chaque PC (IP, compte SSH admin, mot de passe root). Stocké en local
-    dans <code>machines.conf</code> (chmod 600) — <b>jamais</b> envoyé au navigateur ni publié.</p>
+    <p class=muted>Renseigne chaque PC (IP <b>ou</b> nom mDNS, compte SSH admin, mot de passe root).
+    Stocké en local — <b>jamais</b> envoyé au navigateur ni publié.</p>
+    <div id=vaultbox style="margin:8px 0"></div>
     <div id=setlist></div>
     <div style="border-top:1px solid var(--line);margin-top:10px;padding-top:10px">
       <b id=setformtitle>➕ Ajouter une machine</b>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0">
         <label>Nom de la machine<br><input id=s_name placeholder="ex. salon" style="width:95%"></label>
         <label>Adresse IP<br><input id=s_ip placeholder="192.168.1.50" style="width:95%"></label>
+        <label>Nom mDNS/DNS (suit l'IP)<br><input id=s_dns placeholder="ex. salon.local" style="width:95%"></label>
         <label>Compte SSH admin<br><input id=s_user value=root style="width:95%"></label>
         <label>Compte de l'enfant<br><input id=s_account placeholder="(si différent du nom)" style="width:95%"></label>
         <label>Mot de passe root<br><input id=s_pwd type=password placeholder="(vide = inchangé)" style="width:95%"></label>
@@ -414,6 +573,11 @@ let MACHINES=[];
 let LOCKED={};
 async function j(u,o){const r=await fetch(u,o);return r.json()}
 async function load(){
+  const st=await j('/api/state');
+  const ov=document.getElementById('unlock');
+  if(st.locked){ ov.style.display='flex'; document.getElementById('u_pwd').focus(); return; }
+  ov.style.display='none';
+  renderVault(st);
   MACHINES=await j('/api/machines');
   document.getElementById('list').value=await (await fetch('/api/allowlist')).text();
   const m=document.getElementById('machines'),lb=document.getElementById('logbtns');
@@ -449,19 +613,53 @@ async function load(){
   MACHINES.forEach(x=>loadTL(x.name));
   loadSet();
 }
+function renderVault(st){
+  const b=document.getElementById('vaultbox'); if(!b)return;
+  if(!st.crypto){ b.innerHTML='<span class=muted>🔓 Chiffrement indisponible — installe le module Python <code>cryptography</code> (<code>pip install cryptography</code>).</span>'; return; }
+  if(st.encrypted){
+    b.innerHTML='<span class=ok>🔐 Configuration chiffrée.</span> <button class=row onclick=doLockVault()>🔒 Verrouiller maintenant</button>';
+  }else{
+    b.innerHTML='<span class=bad>🔓 Mots de passe stockés en clair.</span> <button class=primary onclick=doEncrypt()>🔐 Protéger par un mot de passe maître</button>';
+  }
+}
+async function doUnlock(){
+  const p=document.getElementById('u_pwd').value;
+  const r=await j('/api/unlock',{method:'POST',body:JSON.stringify({password:p})});
+  if(r.ok){ document.getElementById('u_pwd').value=''; document.getElementById('u_msg').textContent=''; load(); }
+  else document.getElementById('u_msg').textContent='❌ '+(r.msg||'');
+}
+async function doEncrypt(){
+  const p=prompt('Choisis un MOT DE PASSE MAÎTRE pour chiffrer la config.\\n\\n⚠️ Si tu l\\'oublies, la config sera IRRÉCUPÉRABLE. Note-le en lieu sûr.');
+  if(!p) return;
+  if(prompt('Confirme le mot de passe maître :')!==p){ alert('Les deux mots de passe diffèrent.'); return; }
+  const r=await j('/api/encrypt',{method:'POST',body:JSON.stringify({password:p})});
+  alert(r.ok?('✅ '+r.msg):('❌ '+(r.msg||'')));
+  load();
+}
+async function doLockVault(){ await j('/api/lock-vault',{method:'POST'}); load(); }
+async function resolveIp(name){
+  const r=await j('/api/resolve?machine='+encodeURIComponent(name),{method:'POST'});
+  alert(r.ok?(r.changed?('✅ '+name+' : nouvelle IP → '+r.ip):('✅ '+name+' : IP inchangée ('+r.ip+')')):('❌ '+(r.msg||'')));
+  load();
+}
 async function loadSet(){
   const L=await j('/api/settings'); window._SET=L;
   const el=document.getElementById('setlist');
   if(!L.length){ el.innerHTML='<p class=muted>Aucune machine enregistrée. Remplis le formulaire ci-dessous 👇</p>'; return; }
-  el.innerHTML='<table><tr><th>Nom</th><th>IP</th><th>Compte enfant</th><th>Mode</th><th></th></tr>'+
-    L.map(x=>'<tr><td><b>'+x.name+'</b></td><td>'+x.ip+'</td><td>'+(x.account||x.name)+'</td><td>'+x.mode+'</td>'+
-      '<td style="white-space:nowrap"><button class=row onclick="editSet(\\''+x.name+'\\')">✏️ Modifier</button> '+
-      '<button class=row onclick="delSet(\\''+x.name+'\\')">🗑️</button></td></tr>').join('')+'</table>';
+  el.innerHTML='<table><tr><th>Nom</th><th>Adresse</th><th>Compte enfant</th><th>Mode</th><th></th></tr>'+
+    L.map(function(x){
+      var addr=x.ip+(x.dns?(' <span class=muted>('+x.dns+')</span>'):'');
+      var rb=x.dns?(' <button class=row onclick="resolveIp(\\''+x.name+'\\')">🔄 IP</button>'):'';
+      return '<tr><td><b>'+x.name+'</b></td><td>'+addr+'</td><td>'+(x.account||x.name)+'</td><td>'+x.mode+'</td>'+
+        '<td style="white-space:nowrap"><button class=row onclick="editSet(\\''+x.name+'\\')">✏️</button> '+
+        '<button class=row onclick="delSet(\\''+x.name+'\\')">🗑️</button>'+rb+'</td></tr>';
+    }).join('')+'</table>';
 }
 function editSet(name){
   const x=(window._SET||[]).find(m=>m.name===name); if(!x)return;
   document.getElementById('s_name').value=x.name;
   document.getElementById('s_ip').value=x.ip;
+  document.getElementById('s_dns').value=x.dns||'';
   document.getElementById('s_user').value=x.user;
   document.getElementById('s_account').value=x.account||'';
   document.getElementById('s_pwd').value='';
@@ -470,7 +668,7 @@ function editSet(name){
   document.getElementById('s_name').focus();
 }
 function clearSet(){
-  ['s_name','s_ip','s_account','s_pwd'].forEach(i=>document.getElementById(i).value='');
+  ['s_name','s_ip','s_dns','s_account','s_pwd'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('s_user').value='root';
   document.getElementById('s_mode').value='timetrack';
   document.getElementById('setformtitle').textContent='➕ Ajouter une machine';
@@ -480,7 +678,7 @@ async function saveSet(){
   const g=i=>document.getElementById(i).value;
   const st=document.getElementById('setstatus'); st.textContent='⏳…';
   const r=await j('/api/settings/save',{method:'POST',body:JSON.stringify({
-    name:g('s_name'),ip:g('s_ip'),user:g('s_user'),account:g('s_account'),pwd:g('s_pwd'),mode:g('s_mode')})});
+    name:g('s_name'),ip:g('s_ip'),dns:g('s_dns'),user:g('s_user'),account:g('s_account'),pwd:g('s_pwd'),mode:g('s_mode')})});
   st.innerHTML=r.ok?'<span class=ok>✅ '+r.msg+'</span>':'<span class=bad>❌ '+(r.msg||'')+'</span>';
   if(r.ok){ clearSet(); load(); }
 }
@@ -593,8 +791,12 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         u = urlparse(self.path)
+        if u.path == "/api/state":
+            return self._send(200, vault_state())
         if u.path == "/":
             return self._send(200, PAGE, "text/html")
+        if is_locked():
+            return self._send(423, {"locked": True, "msg": "verrouillé"})
         if u.path == "/api/machines":
             return self._send(200, [{"name": m["name"], "ip": m["ip"],
                                      "user": m["user"]} for m in load_machines()])
@@ -630,6 +832,20 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length).decode() if length else ""
+        if u.path in ("/api/unlock", "/api/encrypt"):
+            try:
+                d = json.loads(body or "{}")
+            except ValueError:
+                d = {}
+            fn = unlock_vault if u.path == "/api/unlock" else enable_encryption
+            return self._send(200, fn(d.get("password", "")))
+        if u.path == "/api/lock-vault":
+            return self._send(200, lock_vault())
+        if is_locked():
+            return self._send(423, {"locked": True, "msg": "verrouillé"})
+        if u.path == "/api/resolve":
+            q = parse_qs(u.query)
+            return self._send(200, resolve_machine(q.get("machine", [""])[0]))
         if u.path == "/api/allowlist":
             return self._send(200, save_master(body))
         if u.path == "/api/push":

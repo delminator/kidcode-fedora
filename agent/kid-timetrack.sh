@@ -252,6 +252,18 @@ systemctl enable --now psacct >/dev/null 2>&1 && echo "    psacct actif (lastcom
   || echo "    (psacct non démarré)"
 
 # ---------------------------------------------------------------------------
+# mDNS : publie <hostname>.local sur le LAN → le tableau de bord peut joindre
+# ce PC par son nom même si son IP DHCP change.
+# ---------------------------------------------------------------------------
+echo "==> Publication mDNS (avahi) pour suivre l'IP par le nom"
+if ! rpm -q avahi >/dev/null 2>&1; then
+  dnf install -y avahi nss-mdns >/dev/null 2>&1 || echo "    (avahi non installé : pas de réseau ?)"
+fi
+systemctl enable --now avahi-daemon >/dev/null 2>&1 \
+  && echo "    avahi actif → ce PC est joignable en  $(hostname).local" \
+  || echo "    (avahi non démarré — le suivi par nom mDNS sera indispo)"
+
+# ---------------------------------------------------------------------------
 # 4. Conf kidtime : seed le compte enfant SANS limite (réglée via page parents).
 # ---------------------------------------------------------------------------
 touch /etc/kidtime.conf; chmod 0644 /etc/kidtime.conf

@@ -10,16 +10,24 @@
 #         ~/.config/kid-admin/machines.conf   (chmod 600)
 #      Ou via la page Réglages du tableau de bord. / Or via the dashboard Settings page.
 #
-#  Format : nom|ip|user|password[|compte][|mode]
+#  Format : nom|ip|user|password[|compte][|mode][|dns]
 #    nom      = nom affiché de la machine            / display name
-#    ip       = adresse IP                           / IP address
+#    ip       = adresse IP (dernière connue)         / IP address (last known)
 #    user     = compte SSH admin (souvent root)      / SSH admin account (usually root)
 #    password = mot de passe SSH                     / SSH password
 #    compte   = compte de l'enfant si != nom         / child account if different from name
 #    mode     = "timetrack" (surveillance + quota)   / monitoring + time quota
 #               ou "lockdown" (console verrouillée)  / or locked-down console
+#    dns      = nom mDNS/DNS qui suit l'IP            / mDNS/DNS name that follows the IP
+#               (ex: salon.local) — résolu en priorité, l'IP sert de repli
+#               (e.g. salon.local) — tried first, the IP is the fallback
+#
+#  🔐 Chiffrement / encryption: depuis la page Réglages, "Protéger par un mot de
+#     passe maître" chiffre ce fichier → machines.conf.enc (AES + PBKDF2). On le
+#     déverrouille à l'ouverture du tableau de bord. / The Settings page can
+#     encrypt this file into machines.conf.enc, unlocked with a master password.
 # ─────────────────────────────────────────────────────────────────────────
 
 # Exemples / examples — à remplacer / replace these:
-salon|192.168.1.50|root|CHANGE_ME|enfant1|timetrack
-chambre|192.168.1.51|root|CHANGE_ME|enfant2|timetrack
+salon|192.168.1.50|root|CHANGE_ME|enfant1|timetrack|salon.local
+chambre|192.168.1.51|root|CHANGE_ME|enfant2|timetrack|chambre.local
