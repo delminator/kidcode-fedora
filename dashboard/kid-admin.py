@@ -20,6 +20,7 @@ import os
 import re
 import socket
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
@@ -397,29 +398,106 @@ def machines_public():
             for m in load_machines()]
 
 
+def _resolve_ip(dns):
+    """Résout un nom (mDNS/DNS) en IPv4 (repli toute famille). Lève si échec."""
+    try:
+        infos = socket.getaddrinfo(dns, 22, family=socket.AF_INET, type=socket.SOCK_STREAM)
+    except socket.gaierror:
+        infos = socket.getaddrinfo(dns, 22, type=socket.SOCK_STREAM)
+    return infos[0][4][0]
+
+
 def resolve_machine(name):
     """Résout le nom mDNS/DNS d'une machine → IP courante, et met à jour le stockage."""
     m = next((x for x in load_machines() if x["name"] == name), None)
     if not m:
         return {"ok": False, "msg": "machine inconnue"}
-    dns = m.get("dns")
-    if not dns:
+    if not m.get("dns"):
         return {"ok": False, "msg": "pas de nom mDNS/DNS pour cette machine"}
     try:
-        # IPv4 d'abord (LAN), repli sur n'importe quelle famille
-        try:
-            infos = socket.getaddrinfo(dns, 22, family=socket.AF_INET,
-                                       type=socket.SOCK_STREAM)
-        except socket.gaierror:
-            infos = socket.getaddrinfo(dns, 22, type=socket.SOCK_STREAM)
-        ip = infos[0][4][0]
+        ip = _resolve_ip(m["dns"])
     except Exception as e:  # noqa
-        return {"ok": False, "msg": f"résolution impossible de '{dns}' ({e})"}
+        return {"ok": False, "msg": f"résolution impossible de '{m['dns']}' ({e})"}
     changed = ip != m["ip"]
     if changed:
         save_machine({"name": m["name"], "ip": ip, "user": m["user"], "pwd": "",
-                      "account": m["account"], "mode": m["mode"], "dns": dns})
-    return {"ok": True, "ip": ip, "changed": changed, "dns": dns}
+                      "account": m["account"], "mode": m["mode"], "dns": m["dns"]})
+    return {"ok": True, "ip": ip, "changed": changed, "dns": m["dns"]}
+
+
+# ── Échelle « classe » : parallélisme, actions groupées, déploiement ───────
+def _parallel(items, fn, workers=16):
+    """Applique fn à chaque item en parallèle (pool borné). Retourne la liste."""
+    items = list(items)
+    if not items:
+        return []
+    with ThreadPoolExecutor(max_workers=min(workers, len(items))) as ex:
+        return list(ex.map(fn, items))
+
+
+AGENT_SCRIPT = Path(__file__).resolve().parent.parent / "agent" / "kid-timetrack.sh"
+
+
+def deploy_agent(m):
+    """Envoie kid-timetrack.sh sur la machine et l'exécute (compte = m['account'])."""
+    try:
+        if not AGENT_SCRIPT.exists():
+            return {"ok": False, "msg": "agent/kid-timetrack.sh introuvable"}
+        ssh_put_text(m, AGENT_SCRIPT.read_text(), "/tmp/kid-timetrack.sh")
+        rc, out, err = ssh_run(
+            m, f"bash /tmp/kid-timetrack.sh {m['account']}; rm -f /tmp/kid-timetrack.sh",
+            timeout=180)
+        if rc == 0:
+            return {"ok": True, "msg": "agent déployé"}
+        return {"ok": False, "msg": (err.strip() or out.strip() or "échec")[:160]}
+    except Exception as e:  # noqa
+        return {"ok": False, "msg": _ssh_err(e)}
+
+
+def resolve_all(machines):
+    """Résout les noms mDNS en parallèle, puis met à jour les IP en une écriture."""
+    def res(m):
+        if not m.get("dns"):
+            return {"name": m["name"], "ok": False, "msg": "pas de nom mDNS", "ip": m["ip"]}
+        try:
+            ip = _resolve_ip(m["dns"])
+            return {"name": m["name"], "ok": True, "ip": ip, "changed": ip != m["ip"]}
+        except Exception as e:  # noqa
+            return {"name": m["name"], "ok": False, "msg": str(e), "ip": m["ip"]}
+    results = _parallel(machines, res)
+    cur = load_machines()
+    changed = False
+    by_name = {r["name"]: r for r in results}
+    for m in cur:
+        r = by_name.get(m["name"])
+        if r and r.get("ok") and r.get("changed"):
+            m["ip"] = r["ip"]
+            changed = True
+    if changed:
+        _write_machines(cur)
+    return results
+
+
+def bulk_action(action, params=None, names=None):
+    """Action de classe en parallèle. action: lock|unlock|time|deploy|resolve."""
+    params = params or {}
+    machines = load_machines()
+    if names:
+        machines = [m for m in machines if m["name"] in names]
+    if action == "resolve":
+        return resolve_all(machines)
+    if action == "lock":
+        def fn(m): return {"name": m["name"], **write_timelimit(m, 23, 1, 0)}
+    elif action == "unlock":
+        def fn(m): return {"name": m["name"], **write_timelimit(m, 0, 0, 0)}
+    elif action == "time":
+        hs, he, bd = params.get("hstart"), params.get("hend"), params.get("budget")
+        def fn(m): return {"name": m["name"], **write_timelimit(m, hs, he, bd)}
+    elif action == "deploy":
+        def fn(m): return {"name": m["name"], **deploy_agent(m)}
+    else:
+        return [{"ok": False, "msg": "action inconnue"}]
+    return _parallel(machines, fn)
 
 
 def load_master():
@@ -640,6 +718,15 @@ td:first-child{white-space:nowrap;color:#ffd479;font-family:ui-monospace,monospa
 
   <div class=card>
     <h2>Machines &nbsp;<button onclick=refreshStatus() style="font-size:12px;padding:4px 10px">🔄 Rafraîchir le statut</button></h2>
+    <div class=bar style="margin:6px 0 10px;flex-wrap:wrap;gap:6px;align-items:center">
+      <b>👥 Toute la classe :</b>
+      <button class=row onclick="bulk('lock','🔒 Verrouiller TOUTE la classe (privé de PC) ?')">🔒 Verrouiller tous</button>
+      <button class=row onclick="bulk('unlock','🔓 Déverrouiller toute la classe ?')">🔓 Déverrouiller tous</button>
+      <button class=row onclick="bulkTime()">⏱ Temps pour tous</button>
+      <button class=row onclick="bulk('resolve')">🔄 Résoudre les IP</button>
+      <button class=row onclick="bulk('deploy','🚀 Déployer/réinstaller l’agent sur TOUS les PC en ligne ?')">🚀 Déployer l’agent</button>
+      <span class=status id=bulkst></span>
+    </div>
     <div class=machines id=machines></div>
   </div>
 
@@ -801,6 +888,26 @@ async function resolveIp(name){
   const r=await j('/api/resolve?machine='+encodeURIComponent(name),{method:'POST'});
   alert(r.ok?(r.changed?('✅ '+name+' : nouvelle IP → '+r.ip):('✅ '+name+' : IP inchangée ('+r.ip+')')):('❌ '+(r.msg||'')));
   load();
+}
+async function bulk(action,confirmMsg){
+  if(confirmMsg && !confirm(confirmMsg)) return;
+  const st=document.getElementById('bulkst'); st.textContent='⏳ en cours sur la classe…';
+  const r=await j('/api/bulk?action='+action,{method:'POST',body:'{}'});
+  const ok=r.filter(x=>x.ok).length, ko=r.length-ok;
+  let s='<span class=ok>✅ '+ok+'</span> / <span class=bad>❌ '+ko+'</span>';
+  if(ko) s+=' — '+r.filter(x=>!x.ok).map(x=>x.name+' ('+(x.msg||'?')+')').slice(0,4).join(' · ')+(ko>4?' …':'');
+  st.innerHTML=s;
+  refreshStatus(); MACHINES.forEach(x=>loadTL(x.name));
+}
+async function bulkTime(){
+  const hs=prompt('Heure de DÉBUT autorisée (0-24) :','8'); if(hs===null) return;
+  const he=prompt('Heure de FIN autorisée (0-24) :','17'); if(he===null) return;
+  const bd=prompt('Budget en MINUTES/jour (0 = pas de limite de durée) :','0'); if(bd===null) return;
+  const st=document.getElementById('bulkst'); st.textContent='⏳ application à toute la classe…';
+  const r=await j('/api/bulk?action=time',{method:'POST',body:JSON.stringify({hstart:hs,hend:he,budget:bd})});
+  const ok=r.filter(x=>x.ok).length, ko=r.length-ok;
+  st.innerHTML='<span class=ok>✅ temps appliqué à '+ok+' PC</span>'+(ko?(' · <span class=bad>❌ '+ko+'</span>'):'');
+  MACHINES.forEach(x=>loadTL(x.name));
 }
 async function loadSet(){
   const L=await j('/api/settings'); window._SET=L;
@@ -982,8 +1089,8 @@ class Handler(BaseHTTPRequestHandler):
             machines = load_machines()
             if name and name != "all":
                 machines = [x for x in machines if x["name"] == name]
-            return self._send(200, [{"name": m["name"], **machine_status(m)}
-                                    for m in machines])
+            return self._send(200, _parallel(
+                machines, lambda m: {"name": m["name"], **machine_status(m)}))
         if u.path == "/api/logs":
             q = parse_qs(u.query)
             name = q.get("machine", [""])[0]
@@ -1034,6 +1141,15 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/resolve":
             q = parse_qs(u.query)
             return self._send(200, resolve_machine(q.get("machine", [""])[0]))
+        if u.path == "/api/bulk":
+            q = parse_qs(u.query)
+            action = q.get("action", [""])[0]
+            try:
+                params = json.loads(body or "{}")
+            except ValueError:
+                params = {}
+            names = params.get("names")        # None = toutes
+            return self._send(200, bulk_action(action, params, names))
         if u.path == "/api/allowlist":
             return self._send(200, save_master(body))
         if u.path == "/api/push":
@@ -1042,11 +1158,8 @@ class Handler(BaseHTTPRequestHandler):
             machines = load_machines()
             if name != "all":
                 machines = [m for m in machines if m["name"] == name]
-            out = []
-            for m in machines:
-                r = push_to(m)
-                out.append({"name": m["name"], **r})
-            return self._send(200, out)
+            return self._send(200, _parallel(
+                machines, lambda m: {"name": m["name"], **push_to(m)}))
         if u.path == "/api/update":
             q = parse_qs(u.query)
             name = q.get("machine", [""])[0]
