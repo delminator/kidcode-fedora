@@ -513,7 +513,7 @@ def import_bulk(text):
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
-        parts = [p.strip() for p in re.split(r"[|,;\t]+", line)]
+        parts = [p.strip() for p in re.split(r"[|,;\t]", line)]
         if len(parts) < 4:
             errors.append(f"« {line} » : il faut au moins nom, ip, user, mot de passe")
             continue
@@ -704,6 +704,7 @@ align-items:center;gap:12px}
 header h1{font-size:18px;margin:0}
 .wrap{max-width:980px;margin:0 auto;padding:24px;display:grid;gap:22px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+.setcard{display:none}
 .card h2{margin:0 0 12px;font-size:15px;color:var(--accent);
 text-transform:uppercase;letter-spacing:.04em}
 .machines{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
@@ -762,10 +763,11 @@ td:first-child{white-space:nowrap;color:#ffd479;font-family:ui-monospace,monospa
 </div>
 <input id=importfile type=file accept=".enc,application/octet-stream" style="display:none" onchange="onImportFile(event)">
 <header><span style="font-size:22px">🛡️</span><h1>Gestion des PC enfants</h1>
-<span class=pill>console-first · liste blanche</span></header>
+<span class=pill>console-first · liste blanche</span>
+<button onclick=toggleSettings() style="margin-left:auto" id=setbtn>⚙️ Paramètres</button></header>
 <div class=wrap>
 
-  <div class=card>
+  <div class="card setcard">
     <h2>⚙️ Réglages — mes PC enfants</h2>
     <p class=muted>Renseigne chaque PC (IP <b>ou</b> nom mDNS, compte SSH admin, mot de passe root).
     Stocké en local — <b>jamais</b> envoyé au navigateur ni publié.</p>
@@ -791,7 +793,7 @@ td:first-child{white-space:nowrap;color:#ffd479;font-family:ui-monospace,monospa
     </div>
   </div>
 
-  <div class=card>
+  <div class="card setcard">
     <h2>🏫 Outils de classe</h2>
     <div class=bar style="flex-wrap:wrap;gap:6px;align-items:center">
       <button class=row onclick=discover()>🔎 Découvrir les PC (mDNS)</button>
@@ -819,10 +821,15 @@ salle-02|192.168.1.102|root|MDP|eleve|timetrack|salle-02.local" style="width:100
       <button class=row onclick="bulk('deploy','🚀 Déployer/réinstaller l’agent sur TOUS les PC en ligne ?')">🚀 Déployer l’agent</button>
       <span class=status id=bulkst></span>
     </div>
+    <div class=bar style="margin:0 0 8px;gap:8px;align-items:center;flex-wrap:wrap">
+      🏷️ Classe : <select id=grpfilter onchange=renderMachines()></select>
+      <button class=row onclick=toggleView()>🔀 Vue : <span id=viewlabel>cartes</span></button>
+      <span class=muted id=mcount></span>
+    </div>
     <div class=machines id=machines></div>
   </div>
 
-  <div class=card>
+  <div class="card setcard">
     <h2>Liste blanche maître</h2>
     <p class=muted>Un paquet par ligne. Source de vérité unique, poussée à l'identique
     sur les PC. Les noms invalides sont ignorés à l'enregistrement.</p>
@@ -841,7 +848,7 @@ salle-02|192.168.1.102|root|MDP|eleve|timetrack|salle-02.local" style="width:100
     <pre id=logs class=muted>Choisis une machine ci-dessus.</pre>
   </div>
 
-  <div class=card>
+  <div class="card setcard">
     <h2>Aide — côté enfant (commande <code>pkg</code>)</h2>
     <p class=muted>Les enfants n'ont pas <code>sudo dnf</code>. Ils gèrent les paquets
     autorisés avec la commande <code>pkg</code> (sans sudo, sauf l'install) :</p>
@@ -877,12 +884,20 @@ async function load(){
   renderVault(st);
   MACHINES=await j('/api/machines');
   document.getElementById('list').value=await (await fetch('/api/allowlist')).text();
-  const m=document.getElementById('machines'),lb=document.getElementById('logbtns');
-  m.innerHTML='';lb.innerHTML='';
-  MACHINES.forEach(x=>{
-    const d=document.createElement('div');d.className='machine';
-    d.innerHTML=`<div id="dot_${x.name}" style="float:right">⚪</div>
-      <b>${x.name}</b> <span class=ip>${x.user}@${x.ip}</span>
+  if(window._VIEW===undefined) window._VIEW='cards';
+  renderMachines();
+  loadSet();
+  if(window._SETTINGS===undefined) window._SETTINGS=(MACHINES.length===0);
+  applySettingsVis();
+}
+function applySettingsVis(){
+  document.querySelectorAll('.setcard').forEach(c=>c.style.display=window._SETTINGS?'block':'none');
+  const b=document.getElementById('setbtn'); if(b) b.textContent=window._SETTINGS?'✖️ Fermer les paramètres':'⚙️ Paramètres';
+}
+function toggleSettings(){ window._SETTINGS=!window._SETTINGS; applySettingsVis(); if(window._SETTINGS) window.scrollTo({top:0,behavior:'smooth'}); }
+function cardHTML(x){
+  return `<div id="dot_${x.name}" style="float:right">⚪</div>
+      <b>${x.name}</b>${x.group?` <span class=muted>· ${x.group}</span>`:``} <span class=ip>${x.user}@${x.ip}</span>
       <div class=status id="info_${x.name}" style="margin:6px 0">⏳ statut…</div>
       <button class="primary row" onclick="push('${x.name}')">⬆️ Pousser</button>
       <button class="row" onclick="updateM('${x.name}')">🔄 Mettre à jour</button>
@@ -897,18 +912,53 @@ async function load(){
         <div class=muted style="font-size:11px">heures égales = toute la journée · 0 min/j = pas de limite de durée</div>
         <div style="margin-top:8px;border-top:1px dashed var(--line);padding-top:8px">
           🚫 <b>Punition</b> :
-          <button id="lockbtn_${x.name}" onclick="toggleLock('${x.name}')" style="font-weight:bold">🔒 Verrouiller (privé de PC)</button>
+          <button id="lockbtn_${x.name}" onclick="toggleLock('${x.name}')" style="font-weight:bold">🔒 Verrouiller</button>
           <span class=status id="lockst_${x.name}"></span>
         </div>
       </div>`;
-    m.appendChild(d);
-    const b=document.createElement('button');b.textContent='📜 '+x.name;
-    b.onclick=()=>showLogs(x.name);lb.appendChild(b);
-  });
-  if(!MACHINES.length)m.innerHTML='<p class=muted>Aucune machine. Ajoute-en une dans ⚙️ Réglages ci-dessus.</p>';
-  refreshStatus();
-  MACHINES.forEach(x=>loadTL(x.name));
-  loadSet();
+}
+function tableHTML(list){
+  return '<table><tr><th></th><th>Nom</th><th>Adresse</th><th>Temps d’écran</th><th>Actions</th></tr>'+
+    list.map(function(x){
+      var dns=x.dns?(' <span class=muted>('+x.dns+')</span>'):'';
+      var grp=x.group?(' <span class=muted>· '+x.group+'</span>'):'';
+      var rb=x.dns?('<button class=row onclick="resolveIp(\\''+x.name+'\\')">🔄</button> '):'';
+      return '<tr>'+
+        '<td><span id="dot_'+x.name+'">⚪</span></td>'+
+        '<td><b>'+x.name+'</b>'+grp+'<br><span class=status id="info_'+x.name+'" style="font-size:11px">⏳</span></td>'+
+        '<td style="font-size:12px">'+x.ip+dns+'</td>'+
+        '<td style="font-size:12px"><span id="tl_'+x.name+'">…</span></td>'+
+        '<td style="white-space:nowrap">'+
+          '<button id="lockbtn_'+x.name+'" class=row onclick="toggleLock(\\''+x.name+'\\')">🔒</button> '+
+          '<button class=row onclick="push(\\''+x.name+'\\')">⬆️</button> '+rb+
+          '<button class=row onclick="showLogs(\\''+x.name+'\\')">📜</button>'+
+          ' <span class=status id="st_'+x.name+'"></span><span id="lockst_'+x.name+'"></span>'+
+        '</td></tr>';
+    }).join('')+'</table>';
+}
+function filteredMachines(){
+  const g=(document.getElementById('grpfilter')||{}).value||'__all__';
+  return MACHINES.filter(x=> g==='__all__' || (x.group||'(sans groupe)')===g);
+}
+function toggleView(){
+  window._VIEW=(window._VIEW==='table')?'cards':'table';
+  document.getElementById('viewlabel').textContent=(window._VIEW==='table')?'tableau':'cartes';
+  renderMachines();
+}
+function renderMachines(){
+  const sel=document.getElementById('grpfilter'); const prev=sel.value||'__all__';
+  const groups=[...new Set(MACHINES.map(x=>x.group||'(sans groupe)'))].sort();
+  sel.innerHTML='<option value="__all__">Toutes les classes ('+MACHINES.length+')</option>'+
+    groups.map(g=>'<option value="'+g+'">'+g+' ('+MACHINES.filter(x=>(x.group||'(sans groupe)')===g).length+')</option>').join('');
+  sel.value=[...sel.options].some(o=>o.value===prev)?prev:'__all__';
+  const list=filteredMachines();
+  document.getElementById('mcount').textContent=list.length+' machine(s)';
+  const m=document.getElementById('machines'),lb=document.getElementById('logbtns'); lb.innerHTML='';
+  if(!list.length){ m.className=''; m.innerHTML='<p class=muted>'+(MACHINES.length?'Aucune machine dans cette classe.':'Aucune machine. Ajoute-en une dans ⚙️ Réglages ci-dessus.')+'</p>'; }
+  else if(window._VIEW==='table'){ m.className=''; m.innerHTML=tableHTML(list); }
+  else { m.className='machines'; m.innerHTML=''; list.forEach(x=>{ const d=document.createElement('div'); d.className='machine'; d.innerHTML=cardHTML(x); m.appendChild(d); }); }
+  list.forEach(x=>{ const b=document.createElement('button'); b.textContent='📜 '+x.name; b.onclick=()=>showLogs(x.name); lb.appendChild(b); });
+  refreshStatus(); list.forEach(x=>loadTL(x.name));
 }
 function renderVault(st){
   const b=document.getElementById('vaultbox'); if(!b)return;
@@ -981,10 +1031,18 @@ async function resolveIp(name){
   alert(r.ok?(r.changed?('✅ '+name+' : nouvelle IP → '+r.ip):('✅ '+name+' : IP inchangée ('+r.ip+')')):('❌ '+(r.msg||'')));
   load();
 }
+function _scopeNames(){
+  const g=(document.getElementById('grpfilter')||{}).value;
+  return (g&&g!=='__all__')?{g:g,names:filteredMachines().map(x=>x.name)}:{g:null,names:null};
+}
 async function bulk(action,confirmMsg){
-  if(confirmMsg && !confirm(confirmMsg)) return;
-  const st=document.getElementById('bulkst'); st.textContent='⏳ en cours sur la classe…';
-  const r=await j('/api/bulk?action='+action,{method:'POST',body:'{}'});
+  const sc=_scopeNames();
+  if(confirmMsg){
+    const msg=confirmMsg+(sc.names?('\\n\\n→ classe « '+sc.g+' » ('+sc.names.length+' PC)'):'\\n\\n→ TOUTES les classes');
+    if(!confirm(msg)) return;
+  }
+  const st=document.getElementById('bulkst'); st.textContent='⏳ en cours…';
+  const r=await j('/api/bulk?action='+action,{method:'POST',body:JSON.stringify(sc.names?{names:sc.names}:{})});
   const ok=r.filter(x=>x.ok).length, ko=r.length-ok;
   let s='<span class=ok>✅ '+ok+'</span> / <span class=bad>❌ '+ko+'</span>';
   if(ko) s+=' — '+r.filter(x=>!x.ok).map(x=>x.name+' ('+(x.msg||'?')+')').slice(0,4).join(' · ')+(ko>4?' …':'');
@@ -995,8 +1053,9 @@ async function bulkTime(){
   const hs=prompt('Heure de DÉBUT autorisée (0-24) :','8'); if(hs===null) return;
   const he=prompt('Heure de FIN autorisée (0-24) :','17'); if(he===null) return;
   const bd=prompt('Budget en MINUTES/jour (0 = pas de limite de durée) :','0'); if(bd===null) return;
-  const st=document.getElementById('bulkst'); st.textContent='⏳ application à toute la classe…';
-  const r=await j('/api/bulk?action=time',{method:'POST',body:JSON.stringify({hstart:hs,hend:he,budget:bd})});
+  const sc=_scopeNames();
+  const st=document.getElementById('bulkst'); st.textContent='⏳ application…';
+  const r=await j('/api/bulk?action=time',{method:'POST',body:JSON.stringify(Object.assign({hstart:hs,hend:he,budget:bd}, sc.names?{names:sc.names}:{}))});
   const ok=r.filter(x=>x.ok).length, ko=r.length-ok;
   st.innerHTML='<span class=ok>✅ temps appliqué à '+ok+' PC</span>'+(ko?(' · <span class=bad>❌ '+ko+'</span>'):'');
   MACHINES.forEach(x=>loadTL(x.name));
@@ -1085,7 +1144,7 @@ async function loadTL(name){
   const locked=(+r.hstart===23 && +r.hend===1);
   LOCKED[name]=locked;
   const lb=document.getElementById('lockbtn_'+name);
-  if(lb)lb.textContent=locked?'🔓 Déverrouiller':'🔒 Verrouiller (privé de PC)';
+  if(lb)lb.textContent=locked?'🔓 Déverrouiller':'🔒 Verrouiller';
   const card=document.getElementById('info_'+name);
   const tl=document.getElementById('tl_'+name);
   if(tl){ if(locked){ tl.innerHTML="<span class=bad>🔒 VERROUILLÉ jusqu'à nouvel ordre</span>"; }
@@ -1117,15 +1176,10 @@ async function refreshStatus(){
   r.forEach(s=>{
     const dot=document.getElementById('dot_'+s.name);
     const info=document.getElementById('info_'+s.name);
-    if(!dot||!info)return;
-    if(s.online){
-      dot.textContent='🟢';
-      info.innerHTML=`<span class=ok>en ligne</span> · ${s.uptime||''}<br>`+
-        `liste: ${s.allowlist} paquets · installs ✅ ${s.accepted} / ❌ ${s.refused}`;
-    }else{
-      dot.textContent='🔴';
-      info.innerHTML=`<span class=bad>hors ligne</span> (${s.msg||'?'})`;
-    }
+    if(dot) dot.textContent=s.online?'🟢':'🔴';
+    if(info) info.innerHTML=s.online
+      ? `<span class=ok>en ligne</span>${s.uptime?(' · '+s.uptime):''}`
+      : `<span class=bad>hors ligne</span> (${s.msg||'?'})`;
   });
 }
 async function save(){
