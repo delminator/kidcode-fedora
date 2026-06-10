@@ -264,15 +264,21 @@ systemctl enable --now avahi-daemon >/dev/null 2>&1 \
   || echo "    (avahi non démarré — le suivi par nom mDNS sera indispo)"
 # publie un service _kidcode._tcp → le tableau de bord peut DÉCOUVRIR ce PC
 if [ -d /etc/avahi/services ] || mkdir -p /etc/avahi/services 2>/dev/null; then
-  cat > /etc/avahi/services/kidcode.service <<'XML'
+  # ID STABLE (survit aux changements d'IP ET de hostname) → auto-réparation côté dashboard
+  KID_ID=$(cat /etc/machine-id 2>/dev/null || hostname); KID_ID=${KID_ID:0:16}
+  cat > /etc/avahi/services/kidcode.service <<XML
 <?xml version="1.0" standalone='no'?>
 <!DOCTYPE service-group SYSTEM "avahi-service.dtd">
 <service-group>
   <name replace-wildcards="yes">kidcode %h</name>
-  <service><type>_kidcode._tcp</type><port>22</port></service>
+  <service>
+    <type>_kidcode._tcp</type>
+    <port>22</port>
+    <txt-record>id=$KID_ID</txt-record>
+  </service>
 </service-group>
 XML
-  echo "    service mDNS _kidcode._tcp publié (découverte par le tableau de bord)"
+  echo "    service mDNS _kidcode._tcp publié (id=$KID_ID) → auto-réparation IP"
 fi
 
 # ---------------------------------------------------------------------------

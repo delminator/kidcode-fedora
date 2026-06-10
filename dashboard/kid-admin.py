@@ -326,8 +326,11 @@ def load_machines():
         dns = parts[6] if len(parts) >= 7 and parts[6] else ""
         # 8e champ optionnel = groupe/classe (ex: "CM2-A")
         group = parts[7] if len(parts) >= 8 and parts[7] else ""
+        # 9e champ optionnel = ID stable mDNS (appris auto) pour l'auto-réparation IP
+        kid_id = parts[8] if len(parts) >= 9 and parts[8] else ""
         machines.append({"name": name, "ip": ip, "user": user, "pwd": pwd,
-                         "account": account, "mode": mode, "dns": dns, "group": group})
+                         "account": account, "mode": mode, "dns": dns,
+                         "group": group, "kid_id": kid_id})
     return machines
 
 
@@ -348,7 +351,7 @@ def _write_machines(machines):
     for m in machines:
         lines.append("|".join([m["name"], m["ip"], m["user"], m["pwd"],
                                m.get("account", ""), m.get("mode", "timetrack"),
-                               m.get("dns", ""), m.get("group", "")]))
+                               m.get("dns", ""), m.get("group", ""), m.get("kid_id", "")]))
     _write_conf_text("\n".join(lines) + "\n")
 
 
@@ -377,8 +380,9 @@ def save_machine(d):
     # renommage vers un nom déjà utilisé par une AUTRE machine → refus
     if name != orig and any(m["name"] == name for m in machines):
         return {"ok": False, "msg": f"le nom « {name} » existe déjà"}
-    entry = {"name": name, "ip": ip, "user": user, "pwd": pwd,
-             "account": account, "mode": mode, "dns": dns, "group": group}
+    kid_id = _clean(d.get("kid_id")) or (existing.get("kid_id", "") if existing else "")
+    entry = {"name": name, "ip": ip, "user": user, "pwd": pwd, "account": account,
+             "mode": mode, "dns": dns, "group": group, "kid_id": kid_id}
     # on retire l'ancienne entrée (ancien nom) et l'éventuel homonyme, puis on ajoute
     machines = [m for m in machines if m["name"] not in (orig, name)]
     machines.append(entry)
@@ -545,33 +549,85 @@ def import_bulk(text):
     return {"ok": True, "added": added, "updated": updated, "errors": errors}
 
 
-def discover_agents():
-    """Découvre les PC qui publient le service mDNS _kidcode._tcp (agents installés)."""
+def _browse_kidcode(timeout=8):
+    """Liste les agents kidcode publiés en mDNS, avec leur ID stable (TXT id=…)."""
     import shutil
     import subprocess
-    found = {}
-    if shutil.which("avahi-browse"):
-        try:
-            out = subprocess.run(["avahi-browse", "-rpt", "_kidcode._tcp"],
-                                 capture_output=True, text=True, timeout=10).stdout
-            for line in out.splitlines():
-                f = line.split(";")
-                if len(f) >= 8 and f[0] == "=" and f[2] == "IPv4":
-                    host = f[6].rstrip(".")          # ex: salon.local
-                    ip = f[7]
-                    name = (f[3] or host.split(".")[0]).strip()
-                    if host:
-                        found[host] = {"name": name, "ip": ip, "dns": host}
-        except Exception:  # noqa
-            pass
+    if not shutil.which("avahi-browse"):
+        return []
+    try:
+        out = subprocess.run(["avahi-browse", "-rpt", "_kidcode._tcp"],
+                             capture_output=True, text=True, timeout=timeout).stdout
+    except Exception:  # noqa
+        return []
+    res = {}
+    for line in out.splitlines():
+        f = line.split(";")
+        if len(f) >= 8 and f[0] == "=" and f[2] == "IPv4":
+            host = f[6].rstrip(".")
+            ip = f[7]
+            name = (f[3] or host.split(".")[0]).strip()
+            txt = f[9] if len(f) >= 10 else ""
+            mm = re.search(r"id=([A-Za-z0-9]+)", txt)
+            mid = mm.group(1) if mm else ""
+            if host:
+                res[host] = {"name": name, "ip": ip, "dns": host, "id": mid}
+    return list(res.values())
+
+
+def discover_agents():
+    """Découvre les PC qui publient le service mDNS _kidcode._tcp (agents installés)."""
+    found = _browse_kidcode()
     if not found:
         return {"ok": False, "msg": "découverte indisponible ici "
                 "(installe 'avahi-tools', ou utilise l'import en masse)"}
-    known = {m["dns"] for m in load_machines() if m.get("dns")} \
-        | {m["ip"] for m in load_machines()}
-    for v in found.values():
-        v["new"] = v["dns"] not in known and v["ip"] not in known
-    return {"ok": True, "found": sorted(found.values(), key=lambda x: x["name"])}
+    ms = load_machines()
+    known_id = {m["kid_id"] for m in ms if m.get("kid_id")}
+    known = {m["ip"] for m in ms} | {m["dns"] for m in ms if m.get("dns")}
+    for v in found:
+        v["new"] = (not v["id"] or v["id"] not in known_id) \
+            and v["dns"] not in known and v["ip"] not in known
+    return {"ok": True, "found": sorted(found, key=lambda x: x["name"])}
+
+
+def self_heal():
+    """Auto-réparation : re-localise par ID mDNS les machines dont l'IP a changé,
+    et met à jour le stockage (1 browse + 1 écriture). Retourne les corrections."""
+    agents = _browse_kidcode()
+    if not agents:
+        return []
+    by_id = {a["id"]: a for a in agents if a.get("id")}
+    by_host = {a["dns"]: a for a in agents if a.get("dns")}
+    machines = load_machines()
+    healed, changed = [], False
+    for m in machines:
+        a = by_id.get(m.get("kid_id")) if m.get("kid_id") else None
+        if a is None and m.get("dns"):
+            a = by_host.get(m["dns"])
+        if a and a["ip"] and a["ip"] != m["ip"]:
+            healed.append({"name": m["name"], "old": m["ip"], "new": a["ip"]})
+            m["ip"] = a["ip"]
+            if a.get("id") and not m.get("kid_id"):
+                m["kid_id"] = a["id"]
+            changed = True
+    if changed:
+        _write_machines(machines)
+    return healed
+
+
+def _learn_ids(results):
+    """Mémorise l'ID stable des machines qui ont répondu (pour l'auto-réparation future)."""
+    machines = load_machines()
+    by_name = {m["name"]: m for m in machines}
+    changed = False
+    for r in results:
+        mid = r.get("mid")
+        m = by_name.get(r.get("name"))
+        if mid and m is not None and m.get("kid_id") != mid:
+            m["kid_id"] = mid
+            changed = True
+    if changed:
+        _write_machines(machines)
 
 
 def load_master():
@@ -627,19 +683,20 @@ def fetch_logs(m, n=40):
 
 def machine_status(m):
     """Vérifie si la machine est joignable + quelques infos de santé."""
-    cmd = ("printf '%s|%s|%s|%s|%s' "
+    cmd = ("printf '%s|%s|%s|%s|%s|%s' "
            "\"$(hostname)\" "
            "\"$(uptime -p 2>/dev/null)\" "
            "\"$(wc -l < /etc/kid-install-allowlist 2>/dev/null)\" "
            "\"$(journalctl -t install-pkg --no-pager 2>/dev/null | grep -c 'ACCEPTÉ')\" "
-           "\"$(journalctl -t install-pkg --no-pager 2>/dev/null | grep -c 'REFUSÉ')\"")
+           "\"$(journalctl -t install-pkg --no-pager 2>/dev/null | grep -c 'REFUSÉ')\" "
+           "\"$(cat /etc/machine-id 2>/dev/null | cut -c1-16)\"")
     try:
         rc, out, err = ssh_run(m, cmd, timeout=15, connect_timeout=6)
         if rc != 0:
             return {"online": False, "msg": "injoignable"}
-        p = (out.strip().split("|") + ["", "", "", "", ""])[:5]
-        return {"online": True, "hostname": p[0], "uptime": p[1],
-                "allowlist": p[2], "accepted": p[3], "refused": p[4]}
+        p = (out.strip().split("|") + ["", "", "", "", "", ""])[:6]
+        return {"online": True, "hostname": p[0], "uptime": p[1], "allowlist": p[2],
+                "accepted": p[3], "refused": p[4], "mid": p[5]}
     except Exception as e:  # noqa
         return {"online": False, "msg": _ssh_err(e)}
 
@@ -1178,9 +1235,11 @@ async function refreshStatus(){
     const info=document.getElementById('info_'+s.name);
     if(dot) dot.textContent=s.online?'🟢':'🔴';
     if(info) info.innerHTML=s.online
-      ? `<span class=ok>en ligne</span>${s.uptime?(' · '+s.uptime):''}`
+      ? `<span class=ok>en ligne</span>${s.uptime?(' · '+s.uptime):''}${s.healed?(' · <span class=ok>🩹 IP réparée → '+s.healed+'</span>'):''}`
       : `<span class=bad>hors ligne</span> (${s.msg||'?'})`;
   });
+  // une IP a été auto-réparée → recharger les adresses affichées
+  if(r.some(s=>s.healed)){ MACHINES=await j('/api/machines'); renderMachines(); }
 }
 async function save(){
   const r=await j('/api/allowlist',{method:'POST',body:document.getElementById('list').value});
@@ -1260,11 +1319,29 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/status":
             q = parse_qs(u.query)
             name = q.get("machine", [""])[0]
+            allm = (not name) or name == "all"
             machines = load_machines()
-            if name and name != "all":
+            if not allm:
                 machines = [x for x in machines if x["name"] == name]
-            return self._send(200, _parallel(
-                machines, lambda m: {"name": m["name"], **machine_status(m)}))
+            results = _parallel(machines, lambda m: {"name": m["name"], **machine_status(m)})
+            _learn_ids(results)
+            # AUTO-RÉPARATION : un PC injoignable → re-localisation mDNS + nouvelle IP + re-test
+            if any(not r.get("online") for r in results):
+                healed = self_heal()
+                if healed:
+                    fresh = {x["name"]: x for x in load_machines()}
+                    redo = [fresh[h["name"]] for h in healed if h["name"] in fresh]
+                    rr = {r["name"]: r for r in
+                          _parallel(redo, lambda m: {"name": m["name"], **machine_status(m)})}
+                    _learn_ids(list(rr.values()))
+                    results = [rr.get(r["name"], r) for r in results]
+                    hmap = {h["name"]: h["new"] for h in healed}
+                    for r in results:
+                        if r["name"] in hmap:
+                            r["healed"] = hmap[r["name"]]
+            for r in results:
+                r.pop("mid", None)                    # ne pas exposer l'ID au navigateur
+            return self._send(200, results)
         if u.path == "/api/logs":
             q = parse_qs(u.query)
             name = q.get("machine", [""])[0]
