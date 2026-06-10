@@ -324,8 +324,10 @@ def load_machines():
         mode = parts[5].lower() if len(parts) >= 6 and parts[5] else "lockdown"
         # 7e champ optionnel = nom mDNS/DNS (ex: salon.local) suivant l'IP
         dns = parts[6] if len(parts) >= 7 and parts[6] else ""
+        # 8e champ optionnel = groupe/classe (ex: "CM2-A")
+        group = parts[7] if len(parts) >= 8 and parts[7] else ""
         machines.append({"name": name, "ip": ip, "user": user, "pwd": pwd,
-                         "account": account, "mode": mode, "dns": dns})
+                         "account": account, "mode": mode, "dns": dns, "group": group})
     return machines
 
 
@@ -346,7 +348,7 @@ def _write_machines(machines):
     for m in machines:
         lines.append("|".join([m["name"], m["ip"], m["user"], m["pwd"],
                                m.get("account", ""), m.get("mode", "timetrack"),
-                               m.get("dns", "")]))
+                               m.get("dns", ""), m.get("group", "")]))
     _write_conf_text("\n".join(lines) + "\n")
 
 
@@ -356,6 +358,7 @@ def save_machine(d):
     orig = _clean(d.get("orig")) or name      # nom d'origine (pour renommer)
     ip = _clean(d.get("ip"))
     dns = _clean(d.get("dns"))
+    group = _clean(d.get("group"))
     user = _clean(d.get("user"), "root")
     account = _clean(d.get("account"))
     mode = _clean(d.get("mode"), "timetrack").lower()
@@ -375,7 +378,7 @@ def save_machine(d):
     if name != orig and any(m["name"] == name for m in machines):
         return {"ok": False, "msg": f"le nom « {name} » existe déjà"}
     entry = {"name": name, "ip": ip, "user": user, "pwd": pwd,
-             "account": account, "mode": mode, "dns": dns}
+             "account": account, "mode": mode, "dns": dns, "group": group}
     # on retire l'ancienne entrée (ancien nom) et l'éventuel homonyme, puis on ajoute
     machines = [m for m in machines if m["name"] not in (orig, name)]
     machines.append(entry)
@@ -394,7 +397,7 @@ def machines_public():
     """Liste des machines SANS mot de passe (jamais envoyé au navigateur)."""
     return [{"name": m["name"], "ip": m["ip"], "user": m["user"],
              "account": m["account"], "mode": m["mode"], "dns": m.get("dns", ""),
-             "has_pwd": bool(m["pwd"])}
+             "group": m.get("group", ""), "has_pwd": bool(m["pwd"])}
             for m in load_machines()]
 
 
@@ -519,6 +522,7 @@ def import_bulk(text):
         account = _clean(parts[4]) if len(parts) > 4 else ""
         mode = ((_clean(parts[5]) or "timetrack").lower()) if len(parts) > 5 else "timetrack"
         dns = _clean(parts[6]) if len(parts) > 6 else ""
+        group = _clean(parts[7]) if len(parts) > 7 else ""
         if not name or (not ip and not dns):
             errors.append(f"{name or '?'} : nom + (ip ou nom mDNS) requis")
             continue
@@ -536,7 +540,7 @@ def import_bulk(text):
         else:
             added += 1
         by_name[name] = {"name": name, "ip": ip, "user": user, "pwd": pwd,
-                         "account": account, "mode": mode, "dns": dns}
+                         "account": account, "mode": mode, "dns": dns, "group": group}
     _write_machines(list(by_name.values()))
     return {"ok": True, "added": added, "updated": updated, "errors": errors}
 
@@ -779,6 +783,7 @@ td:first-child{white-space:nowrap;color:#ffd479;font-family:ui-monospace,monospa
         <label>Mode<br><select id=s_mode style="width:98%">
           <option value=timetrack>timetrack — surveillance + quota</option>
           <option value=lockdown>lockdown — console verrouillée</option></select></label>
+        <label>Groupe / classe<br><input id=s_group placeholder="ex. CM2-A (optionnel)" style="width:95%"></label>
       </div>
       <button class=primary onclick=saveSet()>💾 Enregistrer la machine</button>
       <button onclick=clearSet()>✖️ Annuler</button>
@@ -1047,12 +1052,13 @@ function editSet(name){
   document.getElementById('s_account').value=x.account||'';
   document.getElementById('s_pwd').value='';
   document.getElementById('s_mode').value=x.mode;
+  document.getElementById('s_group').value=x.group||'';
   document.getElementById('setformtitle').textContent='✏️ Modifier « '+name+' » (tu peux changer le nom · mot de passe vide = inchangé)';
   document.getElementById('s_name').focus();
 }
 function clearSet(){
   window._editOrig='';
-  ['s_name','s_ip','s_dns','s_account','s_pwd'].forEach(i=>document.getElementById(i).value='');
+  ['s_name','s_ip','s_dns','s_account','s_pwd','s_group'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('s_user').value='root';
   document.getElementById('s_mode').value='timetrack';
   document.getElementById('setformtitle').textContent='➕ Ajouter une machine';
@@ -1062,7 +1068,7 @@ async function saveSet(){
   const g=i=>document.getElementById(i).value;
   const st=document.getElementById('setstatus'); st.textContent='⏳…';
   const r=await j('/api/settings/save',{method:'POST',body:JSON.stringify({
-    name:g('s_name'),orig:(window._editOrig||''),ip:g('s_ip'),dns:g('s_dns'),user:g('s_user'),account:g('s_account'),pwd:g('s_pwd'),mode:g('s_mode')})});
+    name:g('s_name'),orig:(window._editOrig||''),ip:g('s_ip'),dns:g('s_dns'),user:g('s_user'),account:g('s_account'),pwd:g('s_pwd'),mode:g('s_mode'),group:g('s_group')})});
   st.innerHTML=r.ok?'<span class=ok>✅ '+r.msg+'</span>':'<span class=bad>❌ '+(r.msg||'')+'</span>';
   if(r.ok){ clearSet(); load(); }
 }
@@ -1194,8 +1200,7 @@ class Handler(BaseHTTPRequestHandler):
         if is_locked():
             return self._send(423, {"locked": True, "msg": "verrouillé"})
         if u.path == "/api/machines":
-            return self._send(200, [{"name": m["name"], "ip": m["ip"],
-                                     "user": m["user"]} for m in load_machines()])
+            return self._send(200, machines_public())
         if u.path == "/api/allowlist":
             return self._send(200, load_master(), "text/plain")
         if u.path == "/api/status":

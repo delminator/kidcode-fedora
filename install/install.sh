@@ -33,18 +33,26 @@ EOF
 chmod +x "$HOME/.local/bin/kidcode"
 echo "✓ commande 'kidcode' installée dans ~/.local/bin"
 
-# 5. entrée de menu (lanceur graphique)
+# 5. entrée de menu (lanceur graphique) — démarre le serveur ET ouvre la page web
 mkdir -p "$HOME/.local/share/applications"
-cat > "$HOME/.local/share/applications/kidcode.desktop" <<EOF
+DESKTOP="$HOME/.local/share/applications/kidcode.desktop"
+cat > "$DESKTOP" <<EOF
 [Desktop Entry]
 Type=Application
-Name=KidCode — tableau de bord parental
-Comment=Temps d'écran, verrouillage et activité des PC enfants
+Name=KidCode
+GenericName=Tableau de bord parental
+Comment=Temps d'écran, verrouillage et activité des PC enfants (ouvre la page web)
 Exec=$HOME/.local/bin/kidcode
 Icon=applications-education
 Terminal=false
-Categories=Education;Settings;
+Categories=Education;
+Keywords=kidcode;enfants;parental;temps;ecran;classe;dashboard;controle;
+StartupNotify=false
 EOF
+chmod +x "$DESKTOP"
+# rafraîchir le menu/lanceur pour qu'il apparaisse tout de suite
+update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
+echo "✓ raccourci 'KidCode' ajouté au lanceur ($DESKTOP)"
 
 echo
 echo "✅ Installé."
