@@ -201,7 +201,7 @@ deny() {
 if [ "${hstart:-0}" != "${hend:-0}" ]; then
   if (( 10#${hour} < 10#${hstart:-0} || 10#${hour} >= 10#${hend:-0} )); then
     if [ "${hstart}" = "23" ] && [ "${hend}" = "1" ]; then
-      deny "🔒🔒   PRIVÉ DE PC   🔒🔒"
+      deny "🔒🔒   ACCÈS VERROUILLÉ   🔒🔒"
     else
       deny "⛔   CE N'EST PAS L'HEURE   ⛔"
     fi

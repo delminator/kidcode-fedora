@@ -12,7 +12,7 @@ It comes in two halves:
 
 | Part | For | What it does |
 |------|-----|--------------|
-| 🖥️ **Dashboard** | Parents | A tiny local web page (127.0.0.1) to set **screen-time quotas**, **lock a PC** ("grounded until further notice"), see **activity logs**, and manage machines — all over SSH. Runs on **Linux & Windows**. |
+| 🖥️ **Dashboard** | Parents | A tiny local web page (127.0.0.1) to set **screen-time quotas**, **lock a PC** ("locked until further notice"), see **activity logs**, and manage machines — all over SSH. Runs on **Linux & Windows**. |
 | 📘 **Guides** | Kids | A printable, **offline** coding guide (FR & EN) — Linux basics, then building Snake, a plasma demo, music, Breakout, Lode Runner… in Python, step by step. |
 | 🛡️ **Agent** | Each kid PC | Small scripts that enforce the time quota (with a friendly lock screen) and optionally lock the machine down to a console-first allow-list. |
 
@@ -25,7 +25,7 @@ It comes in two halves:
 
 - ⏱️ **Screen-time quotas** — allowed hours + minutes/day, enforced every minute; the session
   closes when time is up and **can't be reopened** until tomorrow (PAM login gate).
-- 🔒 **One-click lock** — "grounded until further notice": the kid's login screen shows a clear
+- 🔒 **One-click lock** — "locked until further notice": the kid's login screen shows a clear
   **VERROUILLÉ / LOCKED** message instead of a cryptic password error.
 - 🖥️ **Kid-friendly lock screen** — current time, allowed hours, a **countdown** to the next
   session and a **remaining-time bar**, shown right on the GDM login screen.

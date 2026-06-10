@@ -814,7 +814,7 @@ salle-02|192.168.1.102|root|MDP|eleve|timetrack|salle-02.local" style="width:100
     <h2>Machines &nbsp;<button onclick=refreshStatus() style="font-size:12px;padding:4px 10px">🔄 Rafraîchir le statut</button></h2>
     <div class=bar style="margin:6px 0 10px;flex-wrap:wrap;gap:6px;align-items:center">
       <b>👥 Toute la classe :</b>
-      <button class=row onclick="bulk('lock','🔒 Verrouiller TOUTE la classe (privé de PC) ?')">🔒 Verrouiller tous</button>
+      <button class=row onclick="bulk('lock','🔒 Verrouiller TOUTE la classe (accès bloqué jusqu’au déverrouillage) ?')">🔒 Verrouiller tous</button>
       <button class=row onclick="bulk('unlock','🔓 Déverrouiller toute la classe ?')">🔓 Déverrouiller tous</button>
       <button class=row onclick="bulkTime()">⏱ Temps pour tous</button>
       <button class=row onclick="bulk('resolve')">🔄 Résoudre les IP</button>
@@ -911,7 +911,7 @@ function cardHTML(x){
         <div class=status id="tl_${x.name}">…</div>
         <div class=muted style="font-size:11px">heures égales = toute la journée · 0 min/j = pas de limite de durée</div>
         <div style="margin-top:8px;border-top:1px dashed var(--line);padding-top:8px">
-          🚫 <b>Punition</b> :
+          🔒 <b>Verrouillage</b> :
           <button id="lockbtn_${x.name}" onclick="toggleLock('${x.name}')" style="font-weight:bold">🔒 Verrouiller</button>
           <span class=status id="lockst_${x.name}"></span>
         </div>
@@ -1153,7 +1153,7 @@ async function loadTL(name){
 }
 async function toggleLock(name){
   const lock=!LOCKED[name];
-  if(lock && !confirm('Verrouiller '+name+' (privé de PC) jusqu\\'à nouvel ordre ?\\nLa session ouverte sera fermée et le PC affichera « VERROUILLÉ ».')) return;
+  if(lock && !confirm('Verrouiller '+name+' jusqu\\'à nouvel ordre ?\\nLa session ouverte sera fermée et le PC affichera « VERROUILLÉ ».')) return;
   const st=document.getElementById('lockst_'+name); if(st)st.textContent='⏳…';
   const r=await j('/api/lock?machine='+encodeURIComponent(name)+'&on='+(lock?'1':'0'),{method:'POST'});
   if(st)st.innerHTML=r.ok?('<span class=ok>'+(lock?'🔒 verrouillé':'🔓 déverrouillé')+'</span>'):('<span class=bad>❌ '+(r.msg||'')+'</span>');
@@ -1356,7 +1356,7 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, write_timelimit(m, d.get("hstart"), d.get("hend"),
                                                     d.get("budget")))
         if u.path == "/api/lock":
-            # Verrou « privé de PC » : 23 1 0 = aucune heure autorisée
+            # Verrou total : 23 1 0 = aucune heure autorisée
             # (écran « VERROUILLÉ JUSQU'À NOUVEL ORDRE »). on=0 -> 0 0 0 (libre).
             q = parse_qs(u.query)
             name = q.get("machine", [""])[0]

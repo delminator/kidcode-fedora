@@ -12,7 +12,7 @@ Trois parties :
 
 | Partie | Pour | Rôle |
 |--------|------|------|
-| 🖥️ **Tableau de bord** | Parents | Une petite page web locale (127.0.0.1) pour régler les **quotas de temps**, **verrouiller un PC** (« privé d'ordi jusqu'à nouvel ordre »), voir les **logs d'activité** et gérer les machines — le tout en SSH. Tourne sous **Linux & Windows**. |
+| 🖥️ **Tableau de bord** | Parents | Une petite page web locale (127.0.0.1) pour régler les **quotas de temps**, **verrouiller un PC** (« verrouillé jusqu'à nouvel ordre »), voir les **logs d'activité** et gérer les machines — le tout en SSH. Tourne sous **Linux & Windows**. |
 | 📘 **Guides** | Enfants | Un guide de code **imprimable et hors-ligne** (FR & EN) — les bases Linux, puis coder Snake, une démo plasma, de la musique, un casse-brique, Lode Runner… en Python, pas à pas. |
 | 🛡️ **Agent** | Chaque PC enfant | De petits scripts qui appliquent le quota (avec un écran de verrouillage clair) et, en option, verrouillent la machine en mode console + liste blanche. |
 
@@ -25,7 +25,7 @@ Trois parties :
 
 - ⏱️ **Quotas de temps** — plage horaire + minutes/jour, appliqués chaque minute ; la session se
   ferme quand le temps est écoulé et **ne peut pas être rouverte** avant le lendemain (verrou PAM au login).
-- 🔒 **Verrou en un clic** — « privé d'ordi jusqu'à nouvel ordre » : l'écran de connexion affiche
+- 🔒 **Verrou en un clic** — « verrouillé jusqu'à nouvel ordre » : l'écran de connexion affiche
   un message clair **VERROUILLÉ** au lieu d'une erreur de mot de passe énigmatique.
 - 🖥️ **Écran de verrouillage kid-friendly** — heure actuelle, heures autorisées, **compte à rebours**
   jusqu'à la prochaine session et **jauge de temps restant**, directement sur l'écran GDM.
