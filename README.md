@@ -172,7 +172,8 @@ language) would make the English guide even better.
 
 ## 🙏 Credits
 
-Designed and built with the help of **Claude** (Anthropic).
+Designed by Delminator
+built with the help of **Claude** (Anthropic) on the client/helper part.
 
 ## 📄 License
 
