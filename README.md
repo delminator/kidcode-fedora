@@ -33,8 +33,10 @@ It comes in two halves:
   time-per-app.
 - ⚙️ **Settings page** — add/edit/remove machines (IP, account, root password) from the browser;
   passwords are stored locally (chmod 600) and **never sent to the browser or committed**.
-- 🔐 **Encrypted config** — optionally protect `machines.conf` with a **master password**
-  (AES + PBKDF2 via `cryptography`); the dashboard asks for it once per session.
+- 🔐 **Encrypted config** — on **first run** the dashboard asks for a **master password** and
+  encrypts your machines immediately (AES + PBKDF2 via `cryptography`); it asks for it once per
+  session to unlock. **Export / import** the encrypted file to move your setup to another PC, and
+  **rotate or remove** the master password from the Settings page.
 - 🌐 **Follows DHCP changes** — give each PC an **mDNS/DNS name** (e.g. `salon.local`) and the
   dashboard reaches it by name even when its IP changes; a **🔄 Resolve** button updates the
   stored IP. The agent publishes the name via avahi.

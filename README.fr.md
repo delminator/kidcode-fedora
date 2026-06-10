@@ -33,8 +33,10 @@ Trois parties :
 - ⚙️ **Page Réglages** — ajouter/modifier/supprimer des machines (IP, compte, mot de passe root)
   depuis le navigateur ; les mots de passe sont stockés en local (chmod 600) et **jamais envoyés au
   navigateur ni committés**.
-- 🔐 **Config chiffrée** — protège `machines.conf` avec un **mot de passe maître** (AES + PBKDF2
-  via `cryptography`) ; le tableau de bord le demande une fois par session.
+- 🔐 **Config chiffrée** — au **premier démarrage**, le tableau de bord demande un **mot de passe
+  maître** et chiffre tes machines aussitôt (AES + PBKDF2 via `cryptography`) ; il le redemande une
+  fois par session pour déverrouiller. **Export / import** du fichier chiffré pour migrer vers un
+  autre PC, et **rotation ou retrait** du mot de passe maître depuis la page Réglages.
 - 🌐 **Suit les changements d'IP (DHCP)** — donne à chaque PC un **nom mDNS/DNS** (ex. `salon.local`) :
   le tableau de bord le joint par son nom même si l'IP change ; un bouton **🔄 Résoudre** met à jour
   l'IP stockée. L'agent publie le nom via avahi.

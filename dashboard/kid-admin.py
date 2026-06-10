@@ -115,6 +115,7 @@ def ssh_put_text(m, text, remote_path, connect_timeout=8):
 #    Le mot de passe maître n'est jamais stocké ; la clé dérivée vit en mémoire
 #    le temps de la session (déverrouillage via la page).
 ENC_PATH = CONFIG_DIR / "machines.conf.enc"
+OPTOUT_PATH = CONFIG_DIR / ".plaintext-ok"     # marqueur : a refusé le chiffrement
 _VAULT = {"key": None, "salt": None}
 
 
@@ -135,8 +136,44 @@ def is_locked():
 
 
 def vault_state():
-    return {"encrypted": is_encrypted(), "locked": is_locked(),
-            "has_plain": MACHINES_CONF.exists(), "crypto": _HAS_CRYPTO}
+    enc = is_encrypted()
+    # 1er démarrage : pas encore chiffré, crypto dispo, pas explicitement refusé
+    setup_needed = _HAS_CRYPTO and not enc and not OPTOUT_PATH.exists()
+    return {"encrypted": enc, "locked": is_locked(),
+            "has_plain": MACHINES_CONF.exists(), "crypto": _HAS_CRYPTO,
+            "setup_needed": setup_needed}
+
+
+def skip_encryption():
+    """L'utilisateur choisit de rester en clair : on ne le redemande plus."""
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    OPTOUT_PATH.touch()
+    return {"ok": True}
+
+
+def export_enc():
+    """Renvoie les octets du fichier chiffré (pour sauvegarde / autre PC)."""
+    return ENC_PATH.read_bytes() if is_encrypted() else None
+
+
+def import_enc(b64data):
+    """Importe un machines.conf.enc (depuis un autre PC) ; à déverrouiller ensuite."""
+    import base64
+    import binascii
+    try:
+        raw = base64.b64decode(b64data or "", validate=False)
+    except (binascii.Error, ValueError):
+        return {"ok": False, "msg": "fichier illisible"}
+    if not raw or b"\n" not in raw:
+        return {"ok": False, "msg": "ce n'est pas un fichier de config chiffré (.enc)"}
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    ENC_PATH.write_bytes(raw)
+    try:
+        os.chmod(ENC_PATH, 0o600)
+    except OSError:
+        pass
+    lock_vault()
+    return {"ok": True, "msg": "config importée — déverrouille-la avec son mot de passe maître"}
 
 
 def unlock_vault(password):
@@ -549,7 +586,29 @@ td:first-child{white-space:nowrap;color:#ffd479;font-family:ui-monospace,monospa
     onkeydown="if(event.key==='Enter')doUnlock()">
   <div><button class=primary onclick=doUnlock() style="margin-top:12px">Déverrouiller</button></div>
   <div id=u_msg class=status style="color:#f9b"></div>
+  <div style="margin-top:14px;font-size:13px"><a href="#" onclick="doImportFile();return false" style="color:#9cf">📥 Importer une autre config (.enc)</a></div>
 </div>
+<div id=setup style="display:none;position:fixed;inset:0;background:rgba(8,20,40,.96);z-index:99;
+  align-items:center;justify-content:center;flex-direction:column;color:#fff;text-align:center;padding:20px">
+  <div style="font-size:54px">🔐</div>
+  <h2 style="color:#fff;border:none">Protège les données de tes enfants</h2>
+  <p class=muted style="color:#bcd;max-width:460px">Première utilisation : choisis un <b>mot de passe maître</b>.
+  Il chiffre tout de suite les IP et mots de passe root. ⚠️ Sans lui, la config sera irrécupérable — note-le en lieu sûr.</p>
+  <input id=set_p1 type=password placeholder="mot de passe maître"
+    style="font-size:16px;padding:10px 14px;border-radius:8px;border:none;width:260px;margin:4px"
+    onkeydown="if(event.key==='Enter')document.getElementById('set_p2').focus()">
+  <input id=set_p2 type=password placeholder="confirme le mot de passe"
+    style="font-size:16px;padding:10px 14px;border-radius:8px;border:none;width:260px;margin:4px"
+    onkeydown="if(event.key==='Enter')doSetup()">
+  <div><button class=primary onclick=doSetup() style="margin-top:10px">🔐 Créer &amp; chiffrer</button></div>
+  <div id=set_msg class=status style="color:#f9b"></div>
+  <div style="margin-top:16px;font-size:13px">
+    <a href="#" onclick="doImportFile();return false" style="color:#9cf">📥 Importer une config existante (.enc)</a>
+    &nbsp;·&nbsp;
+    <a href="#" onclick="doSkip();return false" style="color:#9ab">Plus tard (sans chiffrement)</a>
+  </div>
+</div>
+<input id=importfile type=file accept=".enc,application/octet-stream" style="display:none" onchange="onImportFile(event)">
 <header><span style="font-size:22px">🛡️</span><h1>Gestion des PC enfants</h1>
 <span class=pill>console-first · liste blanche</span></header>
 <div class=wrap>
@@ -631,9 +690,11 @@ let LOCKED={};
 async function j(u,o){const r=await fetch(u,o);return r.json()}
 async function load(){
   const st=await j('/api/state');
-  const ov=document.getElementById('unlock');
-  if(st.locked){ ov.style.display='flex'; document.getElementById('u_pwd').focus(); return; }
+  const ov=document.getElementById('unlock'), su=document.getElementById('setup');
+  if(st.locked){ su.style.display='none'; ov.style.display='flex'; document.getElementById('u_pwd').focus(); return; }
   ov.style.display='none';
+  if(st.setup_needed){ su.style.display='flex'; document.getElementById('set_p1').focus(); return; }
+  su.style.display='none';
   renderVault(st);
   MACHINES=await j('/api/machines');
   document.getElementById('list').value=await (await fetch('/api/allowlist')).text();
@@ -675,12 +736,38 @@ function renderVault(st){
   if(!st.crypto){ b.innerHTML='<span class=muted>🔓 Chiffrement indisponible — installe le module Python <code>cryptography</code> (<code>pip install cryptography</code>).</span>'; return; }
   if(st.encrypted){
     b.innerHTML='<span class=ok>🔐 Configuration chiffrée.</span> '+
+      '<button class=row onclick=doExport()>📤 Exporter</button> '+
+      '<button class=row onclick=doImportFile()>📥 Importer</button> '+
       '<button class=row onclick=doChangeMaster()>🔑 Changer le mot de passe</button> '+
       '<button class=row onclick=doRemoveMaster()>🔓 Retirer le chiffrement</button> '+
       '<button class=row onclick=doLockVault()>🔒 Verrouiller</button>';
   }else{
-    b.innerHTML='<span class=bad>🔓 Mots de passe stockés en clair.</span> <button class=primary onclick=doEncrypt()>🔐 Protéger par un mot de passe maître</button>';
+    b.innerHTML='<span class=bad>🔓 Mots de passe stockés en clair.</span> '+
+      '<button class=primary onclick=doEncrypt()>🔐 Protéger par un mot de passe maître</button> '+
+      '<button class=row onclick=doImportFile()>📥 Importer une config (.enc)</button>';
   }
+}
+async function doSetup(){
+  const p1=document.getElementById('set_p1').value, p2=document.getElementById('set_p2').value;
+  const m=document.getElementById('set_msg');
+  if(p1.length<4){ m.textContent='❌ 4 caractères minimum'; return; }
+  if(p1!==p2){ m.textContent='❌ les deux mots de passe diffèrent'; return; }
+  const r=await j('/api/encrypt',{method:'POST',body:JSON.stringify({password:p1})});
+  if(r.ok){ m.textContent=''; load(); } else m.textContent='❌ '+(r.msg||'');
+}
+async function doSkip(){ await j('/api/skip-encrypt',{method:'POST'}); load(); }
+function doExport(){ window.location='/api/export'; }
+function doImportFile(){ document.getElementById('importfile').click(); }
+function onImportFile(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=async function(){
+    const b64=(''+rd.result).split(',').pop();
+    const r=await j('/api/import',{method:'POST',body:JSON.stringify({data:b64})});
+    alert(r.ok?('✅ '+r.msg):('❌ '+(r.msg||'')));
+    ev.target.value=''; load();
+  };
+  rd.readAsDataURL(f);
 }
 async function doUnlock(){
   const p=document.getElementById('u_pwd').value;
@@ -868,6 +955,18 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         if u.path == "/api/state":
             return self._send(200, vault_state())
+        if u.path == "/api/export":
+            data = export_enc()
+            if data is None:
+                return self._send(404, {"ok": False, "msg": "rien à exporter (non chiffré)"})
+            self.send_response(200)
+            self.send_header("Content-Type", "application/octet-stream")
+            self.send_header("Content-Disposition",
+                             "attachment; filename=machines.conf.enc")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+            return
         if u.path == "/":
             return self._send(200, PAGE, "text/html")
         if is_locked():
@@ -920,6 +1019,14 @@ class Handler(BaseHTTPRequestHandler):
             if u.path == "/api/change-master":
                 return self._send(200, change_master(d.get("old", ""), d.get("new", "")))
             return self._send(200, remove_encryption(d.get("password", "")))
+        if u.path == "/api/skip-encrypt":
+            return self._send(200, skip_encryption())
+        if u.path == "/api/import":
+            try:
+                d = json.loads(body or "{}")
+            except ValueError:
+                d = {}
+            return self._send(200, import_enc(d.get("data", "")))
         if u.path == "/api/lock-vault":
             return self._send(200, lock_vault())
         if is_locked():
