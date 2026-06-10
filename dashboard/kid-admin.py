@@ -315,6 +315,7 @@ def _write_machines(machines):
 def save_machine(d):
     """Ajoute ou met à jour une machine. Mot de passe vide = on garde l'ancien."""
     name = _clean(d.get("name"))
+    orig = _clean(d.get("orig")) or name      # nom d'origine (pour renommer)
     ip = _clean(d.get("ip"))
     dns = _clean(d.get("dns"))
     user = _clean(d.get("user"), "root")
@@ -326,20 +327,22 @@ def save_machine(d):
     if mode not in ("timetrack", "lockdown"):
         mode = "timetrack"
     machines = load_machines()
-    existing = next((m for m in machines if m["name"] == name), None)
+    existing = next((m for m in machines if m["name"] == orig), None)
     if not pwd:                       # pas de nouveau mot de passe → garder l'ancien
         if existing and existing["pwd"]:
             pwd = existing["pwd"]
         else:
             return {"ok": False, "msg": "mot de passe requis pour une nouvelle machine"}
+    # renommage vers un nom déjà utilisé par une AUTRE machine → refus
+    if name != orig and any(m["name"] == name for m in machines):
+        return {"ok": False, "msg": f"le nom « {name} » existe déjà"}
     entry = {"name": name, "ip": ip, "user": user, "pwd": pwd,
              "account": account, "mode": mode, "dns": dns}
-    if existing:
-        machines = [entry if m["name"] == name else m for m in machines]
-    else:
-        machines.append(entry)
+    # on retire l'ancienne entrée (ancien nom) et l'éventuel homonyme, puis on ajoute
+    machines = [m for m in machines if m["name"] not in (orig, name)]
+    machines.append(entry)
     _write_machines(machines)
-    return {"ok": True, "msg": "machine enregistrée"}
+    return {"ok": True, "msg": ("machine renommée" if name != orig else "machine enregistrée")}
 
 
 def delete_machine(name):
@@ -727,6 +730,7 @@ async function loadSet(){
 }
 function editSet(name){
   const x=(window._SET||[]).find(m=>m.name===name); if(!x)return;
+  window._editOrig=x.name;
   document.getElementById('s_name').value=x.name;
   document.getElementById('s_ip').value=x.ip;
   document.getElementById('s_dns').value=x.dns||'';
@@ -734,10 +738,11 @@ function editSet(name){
   document.getElementById('s_account').value=x.account||'';
   document.getElementById('s_pwd').value='';
   document.getElementById('s_mode').value=x.mode;
-  document.getElementById('setformtitle').textContent='✏️ Modifier « '+name+' » (mot de passe vide = inchangé)';
+  document.getElementById('setformtitle').textContent='✏️ Modifier « '+name+' » (tu peux changer le nom · mot de passe vide = inchangé)';
   document.getElementById('s_name').focus();
 }
 function clearSet(){
+  window._editOrig='';
   ['s_name','s_ip','s_dns','s_account','s_pwd'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('s_user').value='root';
   document.getElementById('s_mode').value='timetrack';
@@ -748,7 +753,7 @@ async function saveSet(){
   const g=i=>document.getElementById(i).value;
   const st=document.getElementById('setstatus'); st.textContent='⏳…';
   const r=await j('/api/settings/save',{method:'POST',body:JSON.stringify({
-    name:g('s_name'),ip:g('s_ip'),dns:g('s_dns'),user:g('s_user'),account:g('s_account'),pwd:g('s_pwd'),mode:g('s_mode')})});
+    name:g('s_name'),orig:(window._editOrig||''),ip:g('s_ip'),dns:g('s_dns'),user:g('s_user'),account:g('s_account'),pwd:g('s_pwd'),mode:g('s_mode')})});
   st.innerHTML=r.ok?'<span class=ok>✅ '+r.msg+'</span>':'<span class=bad>❌ '+(r.msg||'')+'</span>';
   if(r.ok){ clearSet(); load(); }
 }
