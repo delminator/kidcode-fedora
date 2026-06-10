@@ -37,9 +37,9 @@ Trois parties :
   maître** et chiffre tes machines aussitôt (AES + PBKDF2 via `cryptography`) ; il le redemande une
   fois par session pour déverrouiller. **Export / import** du fichier chiffré pour migrer vers un
   autre PC, et **rotation ou retrait** du mot de passe maître depuis la page Réglages.
-- 🌐 **Suit les changements d'IP (DHCP)** — donne à chaque PC un **nom mDNS/DNS** (ex. `salon.local`) :
-  le tableau de bord le joint par son nom même si l'IP change ; un bouton **🔄 Résoudre** met à jour
-  l'IP stockée. L'agent publie le nom via avahi.
+- 🩹 **Auto-réparation des IP (anti-DHCP)** — chaque agent publie un **ID mDNS stable** ; quand un PC
+  devient injoignable parce que son adresse DHCP a changé, le dashboard **le retrouve par cet ID et
+  met à jour l'IP tout seul** — aucune action manuelle. Découverte et bouton 🔄 Résoudre aussi présents.
 - 📘 **Guide de code bilingue hors-ligne** — aucune connexion requise ; imprime et c'est parti.
 - 🪟 **Tableau de bord multiplateforme** — Python pur + paramiko, tourne sous Linux et Windows.
 
@@ -87,13 +87,15 @@ mot de passe root). Voilà — tu peux régler les quotas, verrouiller et lire l
 
 ## 🧒 Préparer un PC enfant (l'agent)
 
-Sur chaque PC Linux de l'enfant (en root), une fois :
+Choisis l'édition Fedora selon le mode (guide complet : **[docs/agent.md](docs/agent.md)**) :
 
-```bash
-sudo ./agent/kid-timetrack.sh <login_enfant>     # quota + verrou au login + logs d'activité
-# (option, plus strict) verrouillage console-first + liste blanche de paquets :
-sudo ./agent/kid-lockdown.sh  <login_enfant>
-```
+- 🟢 **Surveillance** → installe **Fedora Workstation** (GNOME standard), puis
+  `sudo ./agent/kid-timetrack.sh <login_enfant>` — quota de temps + verrou au login + logs.
+- 🔒 **Verrouillé** → installe **Fedora console seule** (Server / minimal), puis
+  `sudo ./agent/kid-lockdown.sh <login_enfant>` — console-first + liste blanche de paquets.
+
+Les deux publient un ID mDNS → le dashboard **auto-répare leur IP** en cas de changement DHCP
+(retrofit d'un vieil agent : `sudo ./agent/enable-mdns.sh`).
 
 `kid-timetrack.sh` installe un gardien chaque minute, un écran de verrouillage GDM clair, et
 l'accounting de process — **sans rien verrouiller d'autre**. Voir [`docs/agent.md`](docs/agent.md).

@@ -4,6 +4,50 @@
 
 These scripts run **on each child PC** (as root). The dashboard talks to them over SSH.
 
+## Which Fedora edition for which mode?
+
+There are **two ways** to set up a child PC — pick the matching Fedora install:
+
+| Mode | Fedora edition to install | Agent | For |
+|------|---------------------------|-------|-----|
+| 🟢 **Monitoring (timetrack)** | **Fedora Workstation** (standard GNOME desktop) | `kid-timetrack.sh` | The kid keeps a normal desktop; you **watch activity and enforce screen-time** — a friendly GDM lock screen, quotas, logs. |
+| 🔒 **Lockdown (console-only)** | **Fedora console-only** — Fedora **Server**, or the **Everything** net-install in *Minimal/Custom* (no GNOME) | `kid-lockdown.sh` | A **console-first** machine (no desktop): package allow-list, GUI browsers/desktops blocked. For older, command-line-curious kids. |
+
+Both modes need **SSH reachable as root** (so the dashboard can manage them) and publish an
+**mDNS id** (added by the agent) so the dashboard **auto-heals their IP** when DHCP changes it.
+
+### A) Monitoring mode — Fedora Workstation (standard)
+
+1. Install **Fedora Workstation** normally (GNOME, GDM). Create the child's account.
+2. Make root reachable over SSH (once, at the keyboard):
+   ```bash
+   sudo dnf install -y openssh-server && sudo systemctl enable --now sshd
+   sudo firewall-cmd --permanent --add-service=ssh && sudo firewall-cmd --reload
+   echo 'root:YOUR_ROOT_PASSWORD' | sudo chpasswd
+   printf 'PermitRootLogin yes\nPasswordAuthentication yes\n' | sudo tee /etc/ssh/sshd_config.d/00-kidcode.conf
+   sudo systemctl restart sshd
+   ```
+3. Install the agent (copy this repo's `agent/` over, or via USB), then:
+   ```bash
+   sudo ./agent/kid-timetrack.sh <child_login>
+   ```
+4. Add the PC in the dashboard's **⚙️ Settings** (or let **🔎 Discover** find it).
+
+### B) Lockdown mode — Fedora console-only
+
+1. Install Fedora **without a desktop**: **Fedora Server**, or **Fedora Everything**
+   (net-install) → *Software selection: Minimal / Custom*, no GNOME. Boot lands on a text console.
+2. Enable root SSH the same way as step 2 above (sshd is usually already present on Server).
+3. Install the agent:
+   ```bash
+   sudo ./agent/kid-lockdown.sh <child_login>
+   ```
+   This removes full sudo, restricts installs to an allow-list, blocks GUI browsers/desktops,
+   and boots to the console. Graphical home-made apps still run with `cage -- ./app`.
+
+> Already have an old agent without mDNS? Just run `sudo ./agent/enable-mdns.sh` to add
+> IP self-healing without re-running the whole setup.
+
 ## `kid-timetrack.sh <child_login>` — screen-time + logs (no lockdown)
 
 Installs, **without locking anything else down**:
@@ -42,6 +86,50 @@ fully console-first machine for older, command-line-curious kids.
 ## 🇫🇷 Français
 
 Ces scripts tournent **sur chaque PC enfant** (en root). Le tableau de bord leur parle en SSH.
+
+### Quelle édition Fedora pour quel mode ?
+
+Il y a **deux façons** de préparer un PC enfant — choisis l'install Fedora correspondante :
+
+| Mode | Édition Fedora à installer | Agent | Pour |
+|------|----------------------------|-------|------|
+| 🟢 **Surveillance (timetrack)** | **Fedora Workstation** (bureau GNOME standard) | `kid-timetrack.sh` | L'enfant garde un bureau normal ; tu **surveilles l'activité et limites le temps d'écran** — écran de verrouillage GDM clair, quotas, logs. |
+| 🔒 **Verrouillé (console seule)** | **Fedora console seule** — Fedora **Server**, ou l'install **Everything** en *Minimal/Custom* (sans GNOME) | `kid-lockdown.sh` | Machine **console-first** (pas de bureau) : liste blanche de paquets, navigateurs/bureaux GUI bloqués. Pour des enfants plus grands, curieux de la ligne de commande. |
+
+Les deux modes ont besoin de **SSH joignable en root** (pour que le dashboard les gère) et publient
+un **ID mDNS** (ajouté par l'agent) → le dashboard **auto-répare leur IP** quand le DHCP la change.
+
+### A) Mode surveillance — Fedora Workstation (standard)
+
+1. Installe **Fedora Workstation** normalement (GNOME, GDM). Crée le compte de l'enfant.
+2. Rends le root joignable en SSH (une fois, au clavier) :
+   ```bash
+   sudo dnf install -y openssh-server && sudo systemctl enable --now sshd
+   sudo firewall-cmd --permanent --add-service=ssh && sudo firewall-cmd --reload
+   echo 'root:TON_MOT_DE_PASSE_ROOT' | sudo chpasswd
+   printf 'PermitRootLogin yes\nPasswordAuthentication yes\n' | sudo tee /etc/ssh/sshd_config.d/00-kidcode.conf
+   sudo systemctl restart sshd
+   ```
+3. Installe l'agent (copie le dossier `agent/` du dépôt, ou via clé USB), puis :
+   ```bash
+   sudo ./agent/kid-timetrack.sh <login_enfant>
+   ```
+4. Ajoute le PC dans **⚙️ Réglages** du dashboard (ou laisse **🔎 Découvrir** le trouver).
+
+### B) Mode verrouillé — Fedora console seule
+
+1. Installe Fedora **sans bureau** : **Fedora Server**, ou **Fedora Everything** (net-install)
+   → *Sélection des logiciels : Minimal / Personnalisé*, sans GNOME. Le boot tombe sur une console texte.
+2. Active le SSH root comme à l'étape 2 ci-dessus (sshd est souvent déjà présent sur Server).
+3. Installe l'agent :
+   ```bash
+   sudo ./agent/kid-lockdown.sh <login_enfant>
+   ```
+   Ça retire le sudo complet, limite les installs à une liste blanche, bloque navigateurs/bureaux
+   GUI, et démarre en console. Les applis maison graphiques tournent quand même avec `cage -- ./app`.
+
+> Déjà un vieil agent sans mDNS ? Lance simplement `sudo ./agent/enable-mdns.sh` pour ajouter
+> l'auto-réparation d'IP sans tout réinstaller.
 
 ### `kid-timetrack.sh <login_enfant>` — temps d'écran + logs (sans lockdown)
 

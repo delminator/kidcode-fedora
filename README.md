@@ -37,9 +37,9 @@ It comes in two halves:
   encrypts your machines immediately (AES + PBKDF2 via `cryptography`); it asks for it once per
   session to unlock. **Export / import** the encrypted file to move your setup to another PC, and
   **rotate or remove** the master password from the Settings page.
-- 🌐 **Follows DHCP changes** — give each PC an **mDNS/DNS name** (e.g. `salon.local`) and the
-  dashboard reaches it by name even when its IP changes; a **🔄 Resolve** button updates the
-  stored IP. The agent publishes the name via avahi.
+- 🩹 **Self-healing IPs (DHCP-proof)** — each agent advertises a **stable mDNS id**; when a PC
+  becomes unreachable because its DHCP address changed, the dashboard **re-locates it by id and
+  updates the IP automatically** — no manual fix. Discovery and a 🔄 Resolve button are there too.
 - 📘 **Bilingual offline coding guide** — no internet needed; print it and go.
 - 🪟 **Cross-platform dashboard** — pure-Python + paramiko, runs on Linux and Windows.
 
@@ -89,13 +89,15 @@ password). That's it — you can now set quotas, lock, and read logs.
 
 ## 🧒 Set up a child PC (the agent)
 
-On each kid's Linux PC (as root), once:
+Pick the Fedora edition that matches the mode (full guide: **[docs/agent.md](docs/agent.md)**):
 
-```bash
-sudo ./agent/kid-timetrack.sh <child_login>     # screen-time + login gate + activity logs
-# (optional, stricter) console-first lock-down with a package allow-list:
-sudo ./agent/kid-lockdown.sh  <child_login>
-```
+- 🟢 **Monitoring** → install **Fedora Workstation** (standard GNOME), then
+  `sudo ./agent/kid-timetrack.sh <child_login>` — screen-time + login gate + activity logs.
+- 🔒 **Lockdown** → install **Fedora console-only** (Server / minimal), then
+  `sudo ./agent/kid-lockdown.sh <child_login>` — console-first with a package allow-list.
+
+Both publish an mDNS id so the dashboard **self-heals their IP** on DHCP changes
+(retrofit an old agent with `sudo ./agent/enable-mdns.sh`).
 
 `kid-timetrack.sh` installs a per-minute guardian, a friendly GDM lock screen, and process
 accounting — **without locking anything else down**. See [`docs/agent.md`](docs/agent.md).

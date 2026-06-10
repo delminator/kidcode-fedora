@@ -491,6 +491,30 @@ systemctl set-default multi-user.target >/dev/null
 echo "==> Cible par défaut : multi-user.target (console)"
 
 # ---------------------------------------------------------------------------
+# mDNS : ID stable publié → le tableau de bord retrouve ce PC même si son IP
+#        change (auto-réparation d'IP côté admin).
+# ---------------------------------------------------------------------------
+echo "==> Publication mDNS (auto-réparation d'IP)"
+dnf install -y avahi nss-mdns >/dev/null 2>&1 || true
+systemctl enable --now avahi-daemon >/dev/null 2>&1 || true
+mkdir -p /etc/avahi/services
+KID_ID=$(cat /etc/machine-id 2>/dev/null || hostname); KID_ID=${KID_ID:0:16}
+cat > /etc/avahi/services/kidcode.service <<XML
+<?xml version="1.0" standalone='no'?>
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<service-group>
+  <name replace-wildcards="yes">kidcode %h</name>
+  <service>
+    <type>_kidcode._tcp</type>
+    <port>22</port>
+    <txt-record>id=$KID_ID</txt-record>
+  </service>
+</service-group>
+XML
+systemctl reload avahi-daemon 2>/dev/null || systemctl restart avahi-daemon 2>/dev/null || true
+echo "    mDNS _kidcode publié (id=$KID_ID)"
+
+# ---------------------------------------------------------------------------
 # Résumé
 # ---------------------------------------------------------------------------
 cat <<EOF
