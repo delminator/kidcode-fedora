@@ -1467,12 +1467,55 @@ class Handler(BaseHTTPRequestHandler):
         return self._send(404, "not found", "text/plain")
 
 
+def _ensure_deps():
+    """Installe paramiko / cryptography à la volée AVEC CET interpréteur s'ils manquent.
+    Évite l'erreur 'No module named paramiko' due à un Python d'install différent."""
+    global paramiko, _HAS_CRYPTO
+    need = ([] if paramiko is not None else ["paramiko"]) \
+        + ([] if _HAS_CRYPTO else ["cryptography"])
+    if not need:
+        return
+    print(f"Dépendances manquantes ({', '.join(need)}) — installation automatique…")
+    import importlib
+    import subprocess
+    for extra in (["--user"], []):                 # d'abord --user, sinon global
+        try:
+            subprocess.run([sys.executable, "-m", "pip", "install", "--quiet", *extra, *need],
+                           check=False)
+        except Exception:  # noqa
+            pass
+        try:
+            import site
+            us = site.getusersitepackages()
+            if us and us not in sys.path:
+                sys.path.append(us)
+        except Exception:  # noqa
+            pass
+        importlib.invalidate_caches()
+        if paramiko is None:
+            try:
+                paramiko = importlib.import_module("paramiko")
+            except ImportError:
+                pass
+        if not _HAS_CRYPTO:
+            try:
+                importlib.import_module("cryptography")
+                _HAS_CRYPTO = True
+            except ImportError:
+                pass
+        if paramiko is not None and _HAS_CRYPTO:
+            print("  ✅ dépendances prêtes.")
+            return
+    print("  ⚠️ installation auto échouée — lance manuellement :")
+    print(f"     \"{sys.executable}\" -m pip install paramiko cryptography")
+
+
 def main():
     url = f"http://{HOST}:{PORT}"
     open_browser = "--open" in sys.argv or os.environ.get("KIDCODE_OPEN") == "1"
+    _ensure_deps()
     if paramiko is None:
-        print("⚠️  paramiko manquant : le SSH ne marchera pas.")
-        print("    Installez :  pip install paramiko   (ou: dnf install python3-paramiko)")
+        print("⚠️  paramiko introuvable : le SSH ne marchera pas (installe-le manuellement).")
     print(f"kidcode dashboard  ->  {url}")
     print(f"  config (machines + mots de passe) : {MACHINES_CONF}")
     try:
