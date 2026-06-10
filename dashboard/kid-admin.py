@@ -211,6 +211,60 @@ def enable_encryption(password):
     return {"ok": True, "msg": "configuration chiffrée 🔐"}
 
 
+def _decrypt_with(password):
+    """Vérifie le mot de passe et renvoie le texte déchiffré (ou lève)."""
+    import base64
+    from cryptography.fernet import Fernet
+    salt_b64, token = ENC_PATH.read_bytes().split(b"\n", 1)
+    salt = base64.b64decode(salt_b64)
+    key = _derive_key(password, salt)
+    return Fernet(key).decrypt(token).decode("utf-8")
+
+
+def change_master(old, new):
+    """Change le mot de passe maître (re-chiffre avec un nouveau sel)."""
+    from cryptography.fernet import InvalidToken
+    if not is_encrypted():
+        return {"ok": False, "msg": "la config n'est pas chiffrée"}
+    if not new or len(new) < 4:
+        return {"ok": False, "msg": "nouveau mot de passe trop court (4 caractères min)"}
+    try:
+        text = _decrypt_with(old)
+    except InvalidToken:
+        return {"ok": False, "msg": "ancien mot de passe incorrect"}
+    except Exception as e:  # noqa
+        return {"ok": False, "msg": str(e)}
+    _VAULT["salt"] = os.urandom(16)
+    _VAULT["key"] = _derive_key(new, _VAULT["salt"])
+    _write_conf_text(text)
+    return {"ok": True, "msg": "mot de passe maître changé 🔐"}
+
+
+def remove_encryption(password):
+    """Retire le chiffrement : revient à machines.conf en clair (chmod 600)."""
+    from cryptography.fernet import InvalidToken
+    if not is_encrypted():
+        return {"ok": False, "msg": "la config n'est pas chiffrée"}
+    try:
+        text = _decrypt_with(password)
+    except InvalidToken:
+        return {"ok": False, "msg": "mot de passe maître incorrect"}
+    except Exception as e:  # noqa
+        return {"ok": False, "msg": str(e)}
+    lock_vault()
+    try:
+        ENC_PATH.unlink()
+    except OSError:
+        pass
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    MACHINES_CONF.write_text(text)
+    try:
+        os.chmod(MACHINES_CONF, 0o600)
+    except OSError:
+        pass
+    return {"ok": True, "msg": "chiffrement retiré — config en clair (chmod 600)"}
+
+
 def load_machines():
     machines = []
     try:
@@ -617,7 +671,10 @@ function renderVault(st){
   const b=document.getElementById('vaultbox'); if(!b)return;
   if(!st.crypto){ b.innerHTML='<span class=muted>🔓 Chiffrement indisponible — installe le module Python <code>cryptography</code> (<code>pip install cryptography</code>).</span>'; return; }
   if(st.encrypted){
-    b.innerHTML='<span class=ok>🔐 Configuration chiffrée.</span> <button class=row onclick=doLockVault()>🔒 Verrouiller maintenant</button>';
+    b.innerHTML='<span class=ok>🔐 Configuration chiffrée.</span> '+
+      '<button class=row onclick=doChangeMaster()>🔑 Changer le mot de passe</button> '+
+      '<button class=row onclick=doRemoveMaster()>🔓 Retirer le chiffrement</button> '+
+      '<button class=row onclick=doLockVault()>🔒 Verrouiller</button>';
   }else{
     b.innerHTML='<span class=bad>🔓 Mots de passe stockés en clair.</span> <button class=primary onclick=doEncrypt()>🔐 Protéger par un mot de passe maître</button>';
   }
@@ -637,6 +694,19 @@ async function doEncrypt(){
   load();
 }
 async function doLockVault(){ await j('/api/lock-vault',{method:'POST'}); load(); }
+async function doChangeMaster(){
+  const o=prompt('Mot de passe maître ACTUEL :'); if(!o) return;
+  const n=prompt('NOUVEAU mot de passe maître :'); if(!n) return;
+  if(prompt('Confirme le nouveau mot de passe :')!==n){ alert('Les deux mots de passe diffèrent.'); return; }
+  const r=await j('/api/change-master',{method:'POST',body:JSON.stringify({old:o,new:n})});
+  alert(r.ok?('✅ '+r.msg):('❌ '+(r.msg||''))); load();
+}
+async function doRemoveMaster(){
+  if(!confirm('Retirer le chiffrement ? Les mots de passe repasseront EN CLAIR (chmod 600).')) return;
+  const p=prompt('Mot de passe maître pour confirmer :'); if(!p) return;
+  const r=await j('/api/remove-master',{method:'POST',body:JSON.stringify({password:p})});
+  alert(r.ok?('✅ '+r.msg):('❌ '+(r.msg||''))); load();
+}
 async function resolveIp(name){
   const r=await j('/api/resolve?machine='+encodeURIComponent(name),{method:'POST'});
   alert(r.ok?(r.changed?('✅ '+name+' : nouvelle IP → '+r.ip):('✅ '+name+' : IP inchangée ('+r.ip+')')):('❌ '+(r.msg||'')));
@@ -832,13 +902,19 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length).decode() if length else ""
-        if u.path in ("/api/unlock", "/api/encrypt"):
+        if u.path in ("/api/unlock", "/api/encrypt", "/api/change-master",
+                      "/api/remove-master"):
             try:
                 d = json.loads(body or "{}")
             except ValueError:
                 d = {}
-            fn = unlock_vault if u.path == "/api/unlock" else enable_encryption
-            return self._send(200, fn(d.get("password", "")))
+            if u.path == "/api/unlock":
+                return self._send(200, unlock_vault(d.get("password", "")))
+            if u.path == "/api/encrypt":
+                return self._send(200, enable_encryption(d.get("password", "")))
+            if u.path == "/api/change-master":
+                return self._send(200, change_master(d.get("old", ""), d.get("new", "")))
+            return self._send(200, remove_encryption(d.get("password", "")))
         if u.path == "/api/lock-vault":
             return self._send(200, lock_vault())
         if is_locked():
