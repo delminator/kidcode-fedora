@@ -1,0 +1,44 @@
+name: Build Windows .exe
+
+# Construit KidCode.exe (Python + paramiko + cryptography embarqués) sur un
+# runner Windows. Déclenché par un tag vX.Y.Z (→ attaché à la Release) ou à la main.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write          # pour attacher l'exe à la Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install build deps
+        run: python -m pip install --upgrade pip pyinstaller paramiko cryptography
+
+      - name: Build KidCode.exe
+        run: >
+          pyinstaller --onefile --name KidCode
+          --add-data "agent;agent"
+          --collect-submodules paramiko
+          --collect-submodules cryptography
+          dashboard/kid-admin.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KidCode-windows
+          path: dist/KidCode.exe
+
+      - name: Attach to Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/KidCode.exe

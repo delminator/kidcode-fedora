@@ -67,16 +67,23 @@ cd kidcode-fedora-main && ./install/install.sh
 
 ### Windows
 
+**Easiest — nothing to install:** download **`KidCode.exe`** from the
+[latest Release](https://github.com/delminator/kidcode-fedora/releases) and double-click it.
+Python, `paramiko` and `cryptography` are **bundled inside** — no Python setup needed.
+It starts the dashboard and opens your browser at **http://127.0.0.1:8765**.
+
+<details><summary><b>From source</b> (if you prefer / for the guides & agent scripts)</summary>
+
 ```powershell
-# download (PowerShell has curl/Invoke-WebRequest built in)
+# needs Python 3 first:  winget install -e --id Python.Python.3.12
 Invoke-WebRequest https://github.com/delminator/kidcode-fedora/archive/refs/heads/main.zip -OutFile kidcode.zip
 Expand-Archive kidcode.zip -DestinationPath .
 cd kidcode-fedora-main
-powershell -ExecutionPolicy Bypass -File install\install.ps1   # installs paramiko + a Desktop shortcut
+powershell -ExecutionPolicy Bypass -File install\install.ps1   # installs deps + a Desktop shortcut
 ```
 
 Then double-click **KidCode** on the Desktop (or run `install\kidcode.bat`).
-The dashboard opens at **http://127.0.0.1:8765**.
+</details>
 
 > 💡 Already have `wget` on Windows? `wget https://github.com/delminator/kidcode-fedora/archive/refs/heads/main.zip -O kidcode.zip` works too.
 

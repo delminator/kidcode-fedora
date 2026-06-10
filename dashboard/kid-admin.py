@@ -442,7 +442,14 @@ def _parallel(items, fn, workers=16):
         return list(ex.map(fn, items))
 
 
-AGENT_SCRIPT = Path(__file__).resolve().parent.parent / "agent" / "kid-timetrack.sh"
+def _resource_dir():
+    """Racine des ressources : le bundle PyInstaller si gelé (.exe), sinon le dépôt."""
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    return Path(__file__).resolve().parent.parent
+
+
+AGENT_SCRIPT = _resource_dir() / "agent" / "kid-timetrack.sh"
 
 
 def deploy_agent(m):
@@ -1512,8 +1519,11 @@ def _ensure_deps():
 
 def main():
     url = f"http://{HOST}:{PORT}"
-    open_browser = "--open" in sys.argv or os.environ.get("KIDCODE_OPEN") == "1"
-    _ensure_deps()
+    frozen = getattr(sys, "frozen", False)
+    # un .exe se lance par double-clic → on ouvre le navigateur d'office
+    open_browser = frozen or "--open" in sys.argv or os.environ.get("KIDCODE_OPEN") == "1"
+    if not frozen:                 # dans un .exe, les deps sont déjà embarquées
+        _ensure_deps()
     if paramiko is None:
         print("⚠️  paramiko introuvable : le SSH ne marchera pas (installe-le manuellement).")
     print(f"kidcode dashboard  ->  {url}")
