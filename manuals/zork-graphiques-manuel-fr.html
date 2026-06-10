@@ -1,0 +1,69 @@
+<!doctype html><html lang=fr><head><meta charset=utf-8>
+<style>
+  @page { size:A4; margin:16mm 15mm; @bottom-center{ content:"Zork graphiques — manuel français · page " counter(page); font:10px sans-serif; color:#888; } }
+  *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{font:13.5px/1.5 "Segoe UI",system-ui,sans-serif;color:#1a1a1a}
+  h2{color:#0f7a45;font-size:18px;border-bottom:2px solid #bdebd0;padding-bottom:3px;margin:18px 0 8px}
+  h3{color:#0b3d75;font-size:15px;margin:12px 0 4px}
+  .lead{background:#eef5ff;border:1px solid #cfe0f5;border-radius:10px;padding:11px 14px}
+  code{font-family:"Cascadia Code",ui-monospace,monospace;background:#eef0f4;color:#b5340b;border:1px solid #dfe2e8;border-radius:4px;padding:1px 6px;font-size:12px}
+  table{border-collapse:collapse;width:100%;margin:8px 0;font-size:12.5px}
+  th,td{border:1px solid #d6dae1;padding:5px 8px;text-align:left;vertical-align:top}
+  th{background:#eef5ff;color:#0b3d75}
+  .tip{background:#fff7e6;border:1px solid #ffe0a3;border-radius:9px;padding:9px 13px;margin:10px 0}
+  .tip b{color:#a85c00}
+  .warn{background:#fdecec;border:1px solid #f6b9b9;border-radius:9px;padding:9px 13px;margin:10px 0}
+  .muted{color:#888;font-size:11px}
+  .cover{background:linear-gradient(160deg,#6a2d8a,#4b2d8a 55%,#241b5e);color:#fff;border-radius:16px;padding:28px;text-align:center;margin-bottom:14px}
+  .cover .t{font-size:30px;font-weight:800}
+  .cover .s{opacity:.92;font-size:14px;margin-top:6px}
+</style></head>
+<body>
+<div class="cover">
+  <div style="font-size:42px">🏰🖱️</div>
+  <div class="t">ZORK NEMESIS &amp; GRAND INQUISITOR</div>
+  <div class="s">Les Zork « graphiques » — manuel du joueur (français)</div>
+  <div class="s muted" style="color:#dcd">Jeux d'aventure point-and-click · se jouent à la SOURIS via ScummVM (plein écran avec <code>cage</code>)</div>
+</div>
+
+<p class="lead">🖱️ Ici, <b>plus de commandes à taper</b> : ces deux Zork sont des aventures
+<b>graphiques</b> qui se jouent <b>à la souris</b>. On les lance avec <b>ScummVM</b> en plein écran.
+Le jeu reste en anglais, mais on comprend vite avec les images.</p>
+
+<h2>1. Les deux aventures</h2>
+<h3>🕯️ Zork Nemesis : The Forbidden Lands (1996)</h3>
+<p>Une aventure <b>sombre et mystérieuse</b> : tu explores des temples abandonnés des Terres
+Interdites pour percer le secret de quatre alchimistes disparus et affronter le Némésis.
+Ambiance énigmes + énigmes d'objets, atmosphère un peu effrayante (pour les plus grands).</p>
+<h3>😈 Zork: Grand Inquisitor (1997)</h3>
+<p>Beaucoup plus <b>drôle</b> : la magie est interdite par le Grand Inquisiteur, et tu dois la
+faire revivre. Humour, personnages loufoques, énigmes malines. Plus accessible et rigolo.</p>
+
+<h2>2. Comment jouer (souris)</h2>
+<table>
+<tr><th>Action</th><th>Comment</th></tr>
+<tr><td>Se déplacer / regarder</td><td>déplace la souris ; le curseur change de forme (flèche = aller par là)</td></tr>
+<tr><td>Interagir / ramasser</td><td><b>clic gauche</b> sur un objet ou un endroit</td></tr>
+<tr><td>Ouvrir l'inventaire</td><td>descends la souris en bas de l'écran (barre d'objets)</td></tr>
+<tr><td>Utiliser un objet</td><td>clique l'objet dans l'inventaire, puis clique où l'utiliser</td></tr>
+<tr><td>Reculer / pivoter</td><td>curseur en forme de flèche sur les bords de l'écran</td></tr>
+<tr><td>Menu (sauver/quitter)</td><td>touche <code>Échap</code></td></tr>
+</table>
+<div class="tip">🔍 <b>Le réflexe :</b> <b>examine tout</b> à la souris (les énigmes se cachent dans les
+détails), <b>note les indices</b> sur papier, et <b>sauvegarde souvent</b> (menu Échap → Save).</div>
+
+<h2>3. Lancer le jeu (sur ton PC)</h2>
+<p>Une fois débloqué et installé (voir l'encadré), lance ScummVM en plein écran :</p>
+<table>
+<tr><td><code>cage -- scummvm</code></td><td>ouvre ScummVM ; choisis le jeu dans la liste et clique <b>Start</b></td></tr>
+</table>
+<p>Dans ScummVM : <code>Escape</code> = menu du jeu (Save / Load / Quit), <code>Alt+Entrée</code> = plein écran on/off, <code>Ctrl+Q</code> = quitter ScummVM.</p>
+
+<div class="warn">🔒 <b>Verrou-jeu (c'est exprès, et c'est fun !)</b> : pour <b>installer</b> Nemesis &amp;
+Grand Inquisitor, tu dois d'abord avoir <b>terminé un Zork TEXTE</b> (I, II ou III, dans <code>frotz</code>).
+Ensuite, lance <code>zork-graphique</code> et donne le <b>mot de passe du Maître du Donjon</b>
+(un adulte te le donne quand tu as fini). 🗝️</div>
+
+<p class="muted">Manuel d'aide en français à usage personnel/éducatif. Jeux © Activision. Se jouent
+via le moteur libre <b>ScummVM</b> (engine « ZVision ») ; il te faut les données des jeux que la famille possède.</p>
+</body></html>

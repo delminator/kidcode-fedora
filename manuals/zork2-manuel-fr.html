@@ -1,0 +1,174 @@
+<!doctype html><html lang=fr><head><meta charset=utf-8>
+<style>
+  @page { size:A4; margin:16mm 15mm; @bottom-center{ content:"Zork II — manuel français · page " counter(page); font:10px sans-serif; color:#888; } }
+  * { box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  body { font:13.5px/1.5 "Segoe UI",system-ui,sans-serif; color:#1a1a1a; }
+  h1 { color:#1f5fb0; font-size:25px; margin:0 0 2px; }
+  h2 { color:#0f7a45; font-size:18px; border-bottom:2px solid #bdebd0; padding-bottom:3px; margin:18px 0 8px; }
+  h3 { color:#0b3d75; font-size:15px; margin:12px 0 4px; }
+  .lead { background:#eef5ff; border:1px solid #cfe0f5; border-radius:10px; padding:11px 14px; }
+  code { font-family:"Cascadia Code",Consolas,ui-monospace,monospace; background:#0f1320; color:#e7e9ee;
+         border-radius:4px; padding:1px 6px; font-size:12px; }
+  p code, td code, li code { background:#eef0f4; color:#b5340b; border:1px solid #dfe2e8; }
+  table { border-collapse:collapse; width:100%; margin:8px 0; font-size:12.5px; }
+  th,td { border:1px solid #d6dae1; padding:5px 8px; text-align:left; vertical-align:top; }
+  th { background:#eef5ff; color:#0b3d75; }
+  .tip { background:#fff7e6; border:1px solid #ffe0a3; border-radius:9px; padding:9px 13px; margin:10px 0; }
+  .tip b { color:#a85c00; }
+  .warn { background:#fdecec; border:1px solid #f6b9b9; border-radius:9px; padding:9px 13px; margin:10px 0; }
+  .term { background:#0f1320; color:#e7e9ee; border-radius:8px; padding:10px 13px; font:12px/1.5 "Cascadia Code",ui-monospace,monospace; white-space:pre-wrap; }
+  .term b { color:#7ee787; }
+  .cols3 { column-count:3; column-gap:16px; }
+  .muted { color:#888; font-size:11px; }
+  .cover { background:linear-gradient(160deg,#1f5fb0,#0b3d75 60%,#06243f); color:#fff; border-radius:16px;
+           padding:30px; text-align:center; margin-bottom:14px; }
+  .cover .t { font-size:40px; font-weight:800; letter-spacing:1px; }
+  .cover .s { opacity:.92; font-size:15px; margin-top:6px; }
+</style></head>
+<body>
+
+<div class="cover">
+  <div style="font-size:46px">🏰🔦</div>
+  <div class="t">ZORK II</div>
+  <div class="s">Le Sorcier de Frobozz — manuel du joueur (français)</div>
+  <div class="s muted" style="color:#bcd">Traduction &amp; adaptation du manuel Infocom · pour jouer avec <code>frotz</code></div>
+</div>
+
+<p class="lead">⚠️ <b>Important :</b> le jeu Zork, lui, est <b>en anglais</b> — tu tapes donc tes ordres
+<b>en anglais</b> (<code>OPEN MAILBOX</code>, <code>GO NORTH</code>…). Ce manuel t'explique <b>en français</b>
+comment jouer, et te donne le <b>lexique des mots à taper</b>. Garde-le à côté du clavier !</p>
+
+<h2>1. L'aventure</h2>
+<p>Tu as franchi le tumulus de pierre à la fin de Zork I et tu t'enfonces plus profond dans le
+<b>Grand Empire Souterrain</b>. Ici règne le farfelu <b>Sorcier de Frobozz</b>, un vieux magicien sénile
+qui te jette des sorts au hasard — tous commençant par F (<i>Fear</i>, <i>Float</i>, <i>Fireproof</i>, <i>Feeble</i>…).
+Trouve les trésors, déjoue ses tours et perce les secrets de ces nouvelles cavernes. 🪄</p>
+
+<h2>2. Comment « parler » à Zork</h2>
+<p>Le jeu décrit où tu es, puis affiche une invite <code>></code>. Tu écris une phrase courte
+(verbe + objet), tu appuies sur <b>Entrée</b>, et le jeu réagit. Exemples :</p>
+<div class="term">> <b>OPEN THE MAILBOX</b>        (ouvre la boîte aux lettres)
+> <b>READ THE LEAFLET</b>        (lis le prospectus)
+> <b>TURN ON THE LAMP</b>        (allume la lampe)
+> <b>TAKE THE SWORD</b>          (prends l'épée)
+> <b>HIT THE TROLL WITH THE SWORD</b>   (frappe le troll avec l'épée)</div>
+<p>Tu peux mettre <code>THE</code> ou non, écrire en MAJUSCULES ou minuscules, et enchaîner avec
+<code>AND</code> ou une virgule : <code>TAKE LAMP AND SWORD</code>, <code>N. E. OPEN DOOR</code>.</p>
+
+<h2>3. Se déplacer</h2>
+<p>Tape simplement la direction (ou son abréviation) :</p>
+<table>
+<tr><th>À taper</th><th>Direction</th><th>À taper</th><th>Direction</th></tr>
+<tr><td><code>N</code> / <code>NORTH</code></td><td>nord</td><td><code>U</code> / <code>UP</code></td><td>monter</td></tr>
+<tr><td><code>S</code> / <code>SOUTH</code></td><td>sud</td><td><code>D</code> / <code>DOWN</code></td><td>descendre</td></tr>
+<tr><td><code>E</code> / <code>EAST</code></td><td>est</td><td><code>IN</code></td><td>entrer</td></tr>
+<tr><td><code>W</code> / <code>WEST</code></td><td>ouest</td><td><code>OUT</code></td><td>sortir</td></tr>
+<tr><td><code>NE NW SE SW</code></td><td>diagonales</td><td><code>ENTER</code> / <code>EXIT</code></td><td>entrer / sortir</td></tr>
+</table>
+
+<h2>4. Le lexique des actions (français → à taper en anglais)</h2>
+<p>Les verbes que Zork comprend. Combine-les avec un objet (et parfois une préposition :
+<code>LOOK UNDER</code>, <code>PUT … IN …</code>).</p>
+<div class="cols3" style="font-size:12px">
+répondre — <code>ANSWER</code><br>
+attaquer — <code>ATTACK</code><br>
+souffler — <code>BLOW</code><br>
+casser — <code>BREAK</code><br>
+brûler — <code>BURN</code><br>
+grimper — <code>CLIMB</code><br>
+fermer — <code>CLOSE</code><br>
+compter — <code>COUNT</code><br>
+traverser — <code>CROSS</code><br>
+couper — <code>CUT</code><br>
+dégonfler — <code>DEFLATE</code><br>
+creuser — <code>DIG</code><br>
+boire — <code>DRINK</code><br>
+poser/lâcher — <code>DROP</code><br>
+manger — <code>EAT</code><br>
+entrer — <code>ENTER</code><br>
+examiner — <code>EXAMINE</code><br>
+sortir — <code>EXIT</code><br>
+éteindre — <code>EXTINGUISH</code><br>
+remplir — <code>FILL</code><br>
+suivre — <code>FOLLOW</code><br>
+donner — <code>GIVE</code><br>
+gonfler — <code>INFLATE</code><br>
+sauter — <code>JUMP</code><br>
+donner un coup — <code>KICK</code><br>
+frapper (porte) — <code>KNOCK</code><br>
+allumer — <code>LIGHT</code><br>
+écouter — <code>LISTEN</code><br>
+verrouiller — <code>LOCK</code><br>
+regarder — <code>LOOK</code><br>
+abaisser — <code>LOWER</code><br>
+déplacer — <code>MOVE</code><br>
+ouvrir — <code>OPEN</code><br>
+verser — <code>POUR</code><br>
+prier — <code>PRAY</code><br>
+tirer — <code>PULL</code><br>
+pousser — <code>PUSH</code><br>
+mettre/poser — <code>PUT</code><br>
+lever — <code>RAISE</code><br>
+lire — <code>READ</code><br>
+dire — <code>SAY</code><br>
+fouiller — <code>SEARCH</code><br>
+secouer — <code>SHAKE</code><br>
+glisser — <code>SLIDE</code><br>
+sentir — <code>SMELL</code><br>
+rester — <code>STAY</code><br>
+frapper — <code>STRIKE</code><br>
+nager — <code>SWIM</code><br>
+prendre — <code>TAKE</code><br>
+dire/raconter — <code>TELL</code><br>
+lancer/jeter — <code>THROW</code><br>
+attacher — <code>TIE</code><br>
+toucher — <code>TOUCH</code><br>
+tourner — <code>TURN</code><br>
+déverrouiller — <code>UNLOCK</code><br>
+réveiller — <code>WAKE</code><br>
+aller/marcher — <code>WALK</code><br>
+agiter — <code>WAVE</code><br>
+porter (vêtement) — <code>WEAR</code><br>
+remonter (mécanisme) — <code>WIND</code><br>
+</div>
+
+<h2>5. Commandes utiles (un seul mot)</h2>
+<table>
+<tr><th>À taper</th><th>Effet</th></tr>
+<tr><td><code>LOOK</code> / <code>L</code></td><td>redécrit l'endroit où tu es en entier</td></tr>
+<tr><td><code>EXAMINE X</code></td><td>regarde un objet de près (souvent un indice !)</td></tr>
+<tr><td><code>INVENTORY</code> / <code>I</code></td><td>liste ce que tu portes</td></tr>
+<tr><td><code>SCORE</code></td><td>ton score, ton rang et le nombre de tours</td></tr>
+<tr><td><code>DIAGNOSE</code></td><td>ton état de santé (après un combat)</td></tr>
+<tr><td><code>WAIT</code> / <code>Z</code></td><td>laisser le temps passer sans rien faire</td></tr>
+<tr><td><code>AGAIN</code> / <code>G</code></td><td>répète ta dernière commande</td></tr>
+<tr><td><code>SAVE</code> / <code>RESTORE</code></td><td>sauvegarder ta partie / la recharger</td></tr>
+<tr><td><code>RESTART</code></td><td>tout recommencer du début</td></tr>
+<tr><td><code>QUIT</code> / <code>Q</code></td><td>quitter le jeu</td></tr>
+<tr><td><code>VERBOSE</code> / <code>BRIEF</code> / <code>SUPERBRIEF</code></td><td>plus / moins de détails dans les descriptions</td></tr>
+</table>
+
+<h2>6. Tes tout premiers pas</h2>
+<div class="term">> <b>LOOK</b>                  (décris bien la salle où tu es)
+> <b>EXAMINE</b> chaque objet    (souvent un indice caché !)
+> <b>TAKE</b> ce qui est utile · <b>TURN ON LAMP</b>  (garde de la lumière)
+> ... et dessine ta carte sur papier au fur et à mesure</div>
+<div class="warn">🦗 <b>Attention au GRUE !</b> Dans le noir, une créature affreuse appelée <i>grue</i> te dévore.
+<b>Garde toujours ta lampe allumée</b> sous terre (<code>TURN ON LAMP</code>) — et surveille sa pile !</div>
+
+<h2>7. Quand Zork ne comprend pas</h2>
+<table>
+<tr><th>Message du jeu</th><th>Ça veut dire</th></tr>
+<tr><td><code>I don't know the word "…"</code></td><td>Mot inconnu : essaie un synonyme (en anglais).</td></tr>
+<tr><td><code>There was no verb in that sentence!</code></td><td>Il manque un verbe d'action.</td></tr>
+<tr><td><code>There seems to be a noun missing…</code></td><td>Phrase incomplète (ex. <code>EAT THE BLUE</code>).</td></tr>
+<tr><td><code>I beg your pardon?</code></td><td>Tu as appuyé sur Entrée sans rien écrire.</td></tr>
+</table>
+
+<div class="tip">🧭 <b>Conseils de pro :</b> <b>dessine une carte</b> sur papier au fur et à mesure (chaque pièce + ses sorties) ;
+<code>EXAMINE</code> tout ce que tu vois ; <code>SAVE</code> souvent (surtout avant un danger) ; et garde la lampe allumée. Bonne aventure ! 🗝️</div>
+
+<p class="muted">Traduction/adaptation française du manuel d'instructions Infocom de Zork I, à usage personnel/éducatif.
+Le texte du jeu reste en anglais. Manuel original : The Infocom Documentation Project.</p>
+
+</body></html>

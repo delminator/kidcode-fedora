@@ -1,0 +1,64 @@
+<!doctype html><html lang=fr><head><meta charset=utf-8>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { margin:0; font:15px/1.55 "Segoe UI",system-ui,sans-serif; color:#1a1a1a; }
+  .page { width:210mm; height:297mm; page-break-after:always; position:relative; overflow:hidden; }
+  /* ---- couverture ---- */
+  .cover { background:linear-gradient(160deg,#6d5cff 0%,#3b82f6 55%,#06b6d4 100%); color:#fff;
+           display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
+  .cover .frame { border:3px solid rgba(255,255,255,.55); border-radius:20px; padding:48px 40px; width:80%; }
+  .cover .emoji { font-size:96px; line-height:1; }
+  .cover .small { letter-spacing:7px; text-transform:uppercase; font-size:15px; opacity:.9; margin-top:16px; }
+  .cover .title { font-size:58px; font-weight:800; text-transform:uppercase; letter-spacing:1px; margin:8px 0 4px; }
+  .cover .sub { font-size:21px; opacity:.96; margin-top:8px; }
+  .cover .stars { font-size:26px; letter-spacing:12px; margin:26px 0 4px; }
+  .cover .badge { display:inline-block; margin-top:26px; border:2px solid rgba(255,255,255,.6);
+                  border-radius:30px; padding:9px 24px; font-size:15px; }
+  .cover .foot { position:absolute; bottom:26px; width:100%; text-align:center; font-size:12px; opacity:.85; }
+  /* ---- sommaire ---- */
+  .toc { padding:26mm 22mm; }
+  .toc h1 { color:#1f5fb0; font-size:30px; margin:0 0 4px; }
+  .toc p.lead { color:#444; margin:0 0 18px; }
+  table { border-collapse:collapse; width:100%; font-size:14px; }
+  th,td { border:1px solid #d6dae1; padding:9px 11px; text-align:left; vertical-align:top; }
+  th { background:#eef5ff; color:#0b3d75; }
+  td.n { text-align:center; font-weight:bold; color:#0f7a45; width:34px; }
+  code { font-family:"Cascadia Code",Consolas,ui-monospace,monospace; background:#eef0f4;
+         border:1px solid #dfe2e8; border-radius:5px; padding:1px 6px; color:#b5340b; font-size:12.5px; }
+  .tip { margin-top:18px; background:#fff7e6; border:1px solid #ffe0a3; border-radius:10px; padding:12px 16px; font-size:13.5px; }
+  .tip b { color:#a85c00; }
+  .muted { color:#888; font-size:12px; }
+</style></head>
+<body>
+
+<!-- RECTO : page de garde -->
+<section class="page cover"><div class="frame">
+  <div class="emoji">🕹️🐧🎲</div>
+  <div class="small">Mes jeux console</div>
+  <div class="title">Manuels<br>des jeux</div>
+  <div class="sub">Les notices papier de mes jeux Linux<br>— à garder près du clavier 🚀</div>
+  <div class="stars">★ ✦ ★ ✦ ★</div>
+  <div class="badge">Explorateur de donjons &amp; d'aventures</div>
+</div><div class="foot">À ranger dans le classeur · 2026 · sommaire au dos →</div></section>
+
+<!-- VERSO : sommaire -->
+<section class="page toc">
+  <h1>📑 Sommaire</h1>
+  <p class="lead">Dans quel ordre les feuilles sont rangées, et comment lancer chaque jeu.</p>
+  <table>
+    <tr><th>#</th><th>Jeu</th><th>C'est quoi</th><th>Pour l'installer</th><th>Pages</th></tr>
+    <tr><td class=n>1</td><td><b>Dungeon Crawl</b><br><span class=muted>quickstart</span></td><td>Démarrage express : explorer un donjon en 1 page</td><td><code>pkg install crawl</code></td><td>2</td></tr>
+    <tr><td class=n>2</td><td><b>Hunt the Wumpus</b></td><td>Traque le monstre dans un réseau de grottes</td><td><code>pkg install bsd-games</code></td><td>11</td></tr>
+    <tr><td class=n>3</td><td><b>Zork</b><br><span class=muted>+ carte de référence</span></td><td>L'aventure textuelle culte (tape des phrases : <i>go north</i>, <i>take lamp</i>)</td><td><code>pkg install frotz</code></td><td>29</td></tr>
+    <tr><td class=n>4</td><td><b>NetHack</b><br><span class=muted>Guidebook</span></td><td>Le roi des roguelikes : explore les Donjons du Châtiment</td><td><code>pkg install nethack</code></td><td>60</td></tr>
+    <tr><td class=n>5</td><td><b>Dungeon Crawl</b><br><span class=muted>manuel complet</span></td><td>Tout en détail : races, classes, sorts, dieux…</td><td><code>pkg install crawl</code></td><td>85</td></tr>
+    <tr><td class=n>6</td><td><b>Dwarf Fortress</b><br><span class=muted>quickstart</span></td><td>Gère une forteresse de nains — le roguelike le plus profond (et le plus fou !)</td><td><code>dnf install dwarffortress</code><br><span class=muted>(dépôt RPM&nbsp;Fusion nonfree · jeu graphique → lance avec <code>cage</code>)</span></td><td>38</td></tr>
+  </table>
+  <div class="tip">🎮 <b>Astuce :</b> dans chaque jeu, tape <code>?</code> (point d'interrogation) pour l'aide intégrée,
+  et <code>q</code> pour quitter. Pour les jeux simples (Serpent, Tetris, 2048, Sudoku, Échecs) les touches
+  s'affichent à l'écran — pas besoin de manuel papier.</div>
+  <p class="muted" style="margin-top:14px">🐧 Manuels officiels imprimés depuis nethack.org · crawl.akrasiac.org · The Infocom Documentation Project · mocagh.org</p>
+</section>
+
+</body></html>

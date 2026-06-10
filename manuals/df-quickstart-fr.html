@@ -1,0 +1,83 @@
+<!doctype html><html lang=fr><head><meta charset=utf-8>
+<style>
+  @page{size:A4;margin:16mm 15mm;@bottom-center{content:"Dwarf Fortress — démarrage rapide (FR) · page " counter(page);font:10px sans-serif;color:#888}}
+  *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{font:13.5px/1.5 "Segoe UI",system-ui,sans-serif;color:#1a1a1a}
+  h2{color:#7a4a1f;font-size:18px;border-bottom:2px solid #e3d2bb;padding-bottom:3px;margin:18px 0 8px}
+  h3{color:#0b3d75;font-size:15px;margin:12px 0 4px}
+  .lead{background:#fbf6ef;border:1px solid #e3d2bb;border-radius:10px;padding:11px 14px}
+  code{font-family:"Cascadia Code",ui-monospace,monospace;background:#eef0f4;color:#b5340b;border:1px solid #dfe2e8;border-radius:4px;padding:1px 6px;font-size:12px}
+  table{border-collapse:collapse;width:100%;margin:8px 0;font-size:12.5px}
+  th,td{border:1px solid #d6dae1;padding:5px 8px;text-align:left;vertical-align:top}
+  th{background:#fbf6ef;color:#7a4a1f}
+  ol{margin:6px 0 6px 18px} li{margin:3px 0}
+  .tip{background:#fff7e6;border:1px solid #ffe0a3;border-radius:9px;padding:9px 13px;margin:10px 0}
+  .tip b{color:#a85c00}
+  .warn{background:#fdecec;border:1px solid #f6b9b9;border-radius:9px;padding:9px 13px;margin:10px 0}
+  .muted{color:#888;font-size:11px}
+  .cover{background:linear-gradient(160deg,#8a5a2b,#5a3a1a 60%,#2e1d0e);color:#fff;border-radius:16px;padding:26px;text-align:center;margin-bottom:14px}
+  .cover .t{font-size:32px;font-weight:800}
+  .cover .s{opacity:.92;font-size:14px;margin-top:6px}
+</style></head>
+<body>
+<div class="cover">
+  <div style="font-size:42px">⛏️🏔️</div>
+  <div class="t">DWARF FORTRESS</div>
+  <div class="s">Démarrage rapide — gère ta première forteresse de nains (français)</div>
+  <div class="s muted" style="color:#e8d8c0">Installe-le via RPM Fusion : <code>dnf install dwarffortress</code> · lance en plein écran : <code>cage -- dwarffortress</code></div>
+</div>
+
+<p class="lead">🏰 Dans <b>Dwarf Fortress</b> (mode Forteresse), tu ne contrôles pas un héros mais une
+<b>colonie de 7 nains</b>. Tu leur donnes des <b>ordres</b> (creuser, construire, récolter) et ils
+s'organisent. C'est complexe et génial — commence petit, observe, et n'aie pas peur de perdre :
+<b>« Losing is fun! »</b> (perdre fait partie du jeu). Le jeu propose un <b>tutoriel intégré</b> au début — accepte-le !</p>
+
+<h2>1. L'embarquement (embark)</h2>
+<ol>
+<li>Nouvelle partie → laisse le jeu <b>générer un monde</b> (Create New World, taille « Small/Pocket » = plus rapide).</li>
+<li><b>Choisis un lieu</b> : vise une zone <b>tempérée</b>, avec de l'eau (rivière) et des <b>arbres</b>, sans trop de danger.</li>
+<li>Lance l'<b>embarquement</b> avec l'équipement par défaut (au début, ne touche pas trop aux réglages).</li>
+</ol>
+
+<h2>2. L'écran &amp; se déplacer</h2>
+<p>La carte est en symboles/tuiles, vue de dessus, niveau par niveau (souterrain).</p>
+<table>
+<tr><th>Pour…</th><th>Souris / touches</th></tr>
+<tr><td>Bouger la vue</td><td>souris vers les bords, ou flèches</td></tr>
+<tr><td>Monter / descendre d'un étage</td><td><code>&gt;</code> (descendre) et <code>&lt;</code> (monter), ou la molette</td></tr>
+<tr><td>Mettre en pause</td><td><b>Espace</b> (le jeu se joue en <b>pause active</b> : mets en pause pour réfléchir !)</td></tr>
+<tr><td>Vitesse</td><td>le temps avance quand ce n'est pas en pause</td></tr>
+</table>
+<div class="tip">⏸️ <b>Réflexe n°1 :</b> <b>mets en pause</b> (Espace) pour donner tes ordres tranquillement, puis relance le temps.</div>
+
+<h2>3. Tes premiers ordres</h2>
+<ol>
+<li><b>Creuser</b> (menu <i>Dig</i> / ⛏️) : sélectionne une zone dans la falaise/colline → tes nains creusent des galeries et des salles.</li>
+<li><b>Entrepôt</b> (<i>Stockpile</i>) : crée une zone de stockage pour ranger nourriture, bois, pierres.</li>
+<li><b>Ateliers</b> (<i>Workshops</i>) : construis au moins une <b>menuiserie</b> (Carpenter) et une <b>cuisine/distillerie</b> (Still).</li>
+<li><b>Lits &amp; chambres</b> : fabrique des lits (bois) et place-les → tes nains dorment mieux.</li>
+<li><b>Salle à manger</b> : une table + une chaise + un peu d'espace = des nains plus heureux.</li>
+</ol>
+
+<h2>4. Survivre : manger, boire, dormir</h2>
+<table>
+<tr><th>Besoin</th><th>Quoi faire</th></tr>
+<tr><td>🍖 Nourriture</td><td>récolte les plantes, chasse, ou élève des animaux ; cuisine à la cuisine</td></tr>
+<tr><td>🍺 Boisson</td><td>les nains <b>boivent de l'alcool</b> ! Installe une <b>distillerie</b> (Still) tôt — un nain assoiffé travaille mal</td></tr>
+<tr><td>🛏️ Sommeil &amp; humeur</td><td>lits, salle à manger, et plus tard de jolies salles → nains heureux = forteresse qui tient</td></tr>
+</table>
+<div class="warn">⚠️ <b>Pièges du début :</b> oublier la <b>boisson</b> (nains malheureux), creuser trop profond
+trop vite (on réveille des choses…), et laisser l'entrée <b>non protégée</b>. Garde une issue
+fermable et reste près de la surface au début.</div>
+
+<h2>5. Conseils pour ne pas (trop) paniquer</h2>
+<ol>
+<li><b>Commence petit</b> : creuse quelques salles, nourris/abreuve tes nains, observe une saison entière.</li>
+<li><b>Une chose à la fois</b> : un atelier, puis des lits, puis la salle à manger…</li>
+<li><b>Lis les alertes</b> (annonces) — elles préviennent des dangers et des naissances.</li>
+<li>Quand tout s'effondre : <b>recommence</b> ! On apprend de chaque forteresse perdue. 🌱</li>
+</ol>
+
+<p class="muted">Démarrage rapide en français à usage personnel/éducatif, d'après le Quickstart du wiki Dwarf Fortress.
+Jeu © Bay 12 Games (version classique 0.47 dans RPM Fusion). Wiki FR : dwarffortress.fr</p>
+</body></html>
