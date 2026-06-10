@@ -852,6 +852,21 @@ td:first-child{white-space:nowrap;color:#ffd479;font-family:ui-monospace,monospa
 
   <div class="card setcard">
     <h2>🏫 Outils de classe</h2>
+    <div class=bar style="margin:6px 0 10px;flex-wrap:wrap;gap:6px;align-items:center">
+      <b>👥 Actions sur toute la classe :</b>
+      <button class=row onclick="bulk('lock','🔒 Verrouiller TOUTE la classe (accès bloqué jusqu’au déverrouillage) ?')">🔒 Verrouiller tous</button>
+      <button class=row onclick="bulk('unlock','🔓 Déverrouiller toute la classe ?')">🔓 Déverrouiller tous</button>
+      <button class=row onclick="bulkTime()">⏱ Temps pour tous</button>
+      <button class=row onclick="bulk('resolve')">🔄 Résoudre les IP</button>
+      <button class=row onclick="bulk('deploy','🚀 Déployer/réinstaller l’agent sur TOUS les PC en ligne ?')">🚀 Déployer l’agent</button>
+      <span class=status id=bulkst></span>
+    </div>
+    <div class=bar style="margin:0 0 10px;gap:8px;align-items:center;flex-wrap:wrap">
+      🏷️ Filtrer / cibler une classe : <select id=grpfilter onchange=renderMachines()></select>
+      <button class=row onclick=toggleView()>🔀 Vue : <span id=viewlabel>cartes</span></button>
+      <span class=muted style="font-size:12px">(filtre la liste Machines du dashboard et cible les actions ci-dessus)</span>
+    </div>
+    <hr>
     <div class=bar style="flex-wrap:wrap;gap:6px;align-items:center">
       <button class=row onclick=discover()>🔎 Découvrir les PC (mDNS)</button>
       <span class=status id=discst></span>
@@ -868,21 +883,8 @@ salle-02|192.168.1.102|root|MDP|eleve|timetrack|salle-02.local" style="width:100
   </div>
 
   <div class=card>
-    <h2>Machines &nbsp;<button onclick=refreshStatus() style="font-size:12px;padding:4px 10px">🔄 Rafraîchir le statut</button></h2>
-    <div class=bar style="margin:6px 0 10px;flex-wrap:wrap;gap:6px;align-items:center">
-      <b>👥 Toute la classe :</b>
-      <button class=row onclick="bulk('lock','🔒 Verrouiller TOUTE la classe (accès bloqué jusqu’au déverrouillage) ?')">🔒 Verrouiller tous</button>
-      <button class=row onclick="bulk('unlock','🔓 Déverrouiller toute la classe ?')">🔓 Déverrouiller tous</button>
-      <button class=row onclick="bulkTime()">⏱ Temps pour tous</button>
-      <button class=row onclick="bulk('resolve')">🔄 Résoudre les IP</button>
-      <button class=row onclick="bulk('deploy','🚀 Déployer/réinstaller l’agent sur TOUS les PC en ligne ?')">🚀 Déployer l’agent</button>
-      <span class=status id=bulkst></span>
-    </div>
-    <div class=bar style="margin:0 0 8px;gap:8px;align-items:center;flex-wrap:wrap">
-      🏷️ Classe : <select id=grpfilter onchange=renderMachines()></select>
-      <button class=row onclick=toggleView()>🔀 Vue : <span id=viewlabel>cartes</span></button>
-      <span class=muted id=mcount></span>
-    </div>
+    <h2>Machines &nbsp;<button onclick=refreshStatus() style="font-size:12px;padding:4px 10px">🔄 Rafraîchir le statut</button>
+      &nbsp;<span class=muted id=mcount style="font-size:12px;font-weight:normal"></span></h2>
     <div class=machines id=machines></div>
   </div>
 
