@@ -18,6 +18,11 @@
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
+# Version du bundle agent (surveillance + quota + durcissement). À INCRÉMENTER à
+# chaque évolution de l'agent : le tableau de bord la compare à
+# /etc/kidtime/agent-version sur chaque PC et propose la mise à jour si différent.
+AGENT_VERSION=1.1.0
+
 if [[ $EUID -ne 0 ]]; then
   echo "ERREUR : à lancer en root (sudo $0 <compte_enfant>)." >&2
   exit 1
@@ -291,6 +296,12 @@ fi
 
 systemctl daemon-reload
 systemctl enable --now kidtime.timer >/dev/null 2>&1
+
+# Tampon de version : le tableau de bord lit ce fichier pour savoir si l'agent
+# installé est à jour (sinon il propose « Mettre à jour l'agent »).
+mkdir -p /etc/kidtime
+printf '%s\n' "$AGENT_VERSION" > /etc/kidtime/agent-version
+chmod 0644 /etc/kidtime/agent-version
 
 echo
 echo "============================================================"

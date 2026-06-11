@@ -450,19 +450,37 @@ def _resource_dir():
 
 
 AGENT_SCRIPT = _resource_dir() / "agent" / "kid-timetrack.sh"
+GUARD_SCRIPT = _resource_dir() / "agent" / "kid-guard.sh"
+
+
+def _agent_version():
+    """Version courante du bundle agent, lue dans kid-timetrack.sh (AGENT_VERSION=…)."""
+    try:
+        mt = re.search(r"AGENT_VERSION=([0-9][0-9A-Za-z.\-]*)", AGENT_SCRIPT.read_text())
+        return mt.group(1) if mt else "?"
+    except Exception:  # noqa
+        return "?"
+
+
+AGENT_VERSION = _agent_version()
 
 
 def deploy_agent(m):
-    """Envoie kid-timetrack.sh sur la machine et l'exécute (compte = m['account'])."""
+    """Déploie le bundle agent (kid-timetrack + durcissement kid-guard) et le lance.
+    kid-timetrack.sh écrit /etc/kidtime/agent-version → sert au suivi de version."""
     try:
         if not AGENT_SCRIPT.exists():
             return {"ok": False, "msg": "agent/kid-timetrack.sh introuvable"}
+        acct = m["account"]
         ssh_put_text(m, AGENT_SCRIPT.read_text(), "/tmp/kid-timetrack.sh")
-        rc, out, err = ssh_run(
-            m, f"bash /tmp/kid-timetrack.sh {m['account']}; rm -f /tmp/kid-timetrack.sh",
-            timeout=180)
+        cmd = f"bash /tmp/kid-timetrack.sh {acct}; rm -f /tmp/kid-timetrack.sh"
+        # couche durcissement anti-sabotage (watchdog) si le script est présent
+        if GUARD_SCRIPT.exists():
+            ssh_put_text(m, GUARD_SCRIPT.read_text(), "/tmp/kid-guard.sh")
+            cmd += f"; bash /tmp/kid-guard.sh {acct}; rm -f /tmp/kid-guard.sh"
+        rc, out, err = ssh_run(m, cmd, timeout=300)
         if rc == 0:
-            return {"ok": True, "msg": "agent déployé"}
+            return {"ok": True, "msg": f"agent v{AGENT_VERSION} déployé"}
         return {"ok": False, "msg": (err.strip() or out.strip() or "échec")[:160]}
     except Exception as e:  # noqa
         return {"ok": False, "msg": _ssh_err(e)}
@@ -690,20 +708,26 @@ def fetch_logs(m, n=40):
 
 def machine_status(m):
     """Vérifie si la machine est joignable + quelques infos de santé."""
-    cmd = ("printf '%s|%s|%s|%s|%s|%s' "
+    cmd = ("printf '%s|%s|%s|%s|%s|%s|%s|%s' "
            "\"$(hostname)\" "
            "\"$(uptime -p 2>/dev/null)\" "
            "\"$(wc -l < /etc/kid-install-allowlist 2>/dev/null)\" "
            "\"$(journalctl -t install-pkg --no-pager 2>/dev/null | grep -c 'ACCEPTÉ')\" "
            "\"$(journalctl -t install-pkg --no-pager 2>/dev/null | grep -c 'REFUSÉ')\" "
-           "\"$(cat /etc/machine-id 2>/dev/null | cut -c1-16)\"")
+           "\"$(cat /etc/machine-id 2>/dev/null | cut -c1-16)\" "
+           "\"$(cat /etc/kidtime/agent-version 2>/dev/null)\" "
+           "\"$(test -e /var/lib/kidtime/SABOTAGE-LOCK && echo 1)\"")
     try:
         rc, out, err = ssh_run(m, cmd, timeout=15, connect_timeout=6)
         if rc != 0:
             return {"online": False, "msg": "injoignable"}
-        p = (out.strip().split("|") + ["", "", "", "", "", ""])[:6]
+        p = (out.strip().split("|") + [""] * 8)[:8]
+        ver = p[6].strip()
         return {"online": True, "hostname": p[0], "uptime": p[1], "allowlist": p[2],
-                "accepted": p[3], "refused": p[4], "mid": p[5]}
+                "accepted": p[3], "refused": p[4], "mid": p[5],
+                "version": ver, "agent_current": AGENT_VERSION,
+                "needs_update": ver != AGENT_VERSION,
+                "tamper_lock": p[7].strip() == "1"}
     except Exception as e:  # noqa
         return {"online": False, "msg": _ssh_err(e)}
 
@@ -866,6 +890,7 @@ td:first-child{white-space:nowrap;color:#ffd479;font-family:ui-monospace,monospa
       <button class=row onclick="bulkTime()">⏱ Temps pour tous</button>
       <button class=row onclick="bulk('resolve')">🔄 Résoudre les IP</button>
       <button class=row onclick="bulk('deploy','🚀 Déployer/réinstaller l’agent sur TOUS les PC en ligne ?')">🚀 Déployer l’agent</button>
+      <button class=row onclick="updateAgents()">⬆️ Mettre à jour les agents obsolètes</button>
       <span class=status id=bulkst></span>
     </div>
     <div class=bar style="margin:0 0 10px;gap:8px;align-items:center;flex-wrap:wrap">
@@ -1242,13 +1267,40 @@ async function refreshStatus(){
   r.forEach(s=>{
     const dot=document.getElementById('dot_'+s.name);
     const info=document.getElementById('info_'+s.name);
-    if(dot) dot.textContent=s.online?'🟢':'🔴';
+    if(dot) dot.textContent=s.online?(s.needs_update?'🟠':'🟢'):'🔴';
+    let ver='';
+    if(s.online){
+      if(!s.version) ver=` · <span class=bad>agent absent</span> <button class=row onclick="deployAgent('${s.name}')">⬇️ Installer l'agent</button>`;
+      else if(s.needs_update) ver=` · <span class=bad>agent v${s.version} ⚠️→ v${s.agent_current}</span> <button class=row onclick="deployAgent('${s.name}')">⬆️ Mettre à jour l'agent</button>`;
+      else ver=` · <span class=ok>agent v${s.version} ✓</span>`;
+    }
+    const tl=s.tamper_lock?` · <span class=bad>⛔ verrouillé (sabotage) — déverrouille avec 🔓</span>`:'';
     if(info) info.innerHTML=s.online
-      ? `<span class=ok>en ligne</span>${s.uptime?(' · '+s.uptime):''}${s.healed?(' · <span class=ok>🩹 IP réparée → '+s.healed+'</span>'):''}`
+      ? `<span class=ok>en ligne</span>${s.uptime?(' · '+s.uptime):''}${s.healed?(' · <span class=ok>🩹 IP réparée → '+s.healed+'</span>'):''}${ver}${tl}`
       : `<span class=bad>hors ligne</span> (${s.msg||'?'})`;
   });
   // une IP a été auto-réparée → recharger les adresses affichées
   if(r.some(s=>s.healed)){ MACHINES=await j('/api/machines'); renderMachines(); }
+}
+async function deployAgent(name){
+  const info=document.getElementById('info_'+name);
+  if(info) info.innerHTML+=' ⏳ déploiement de l\\'agent… (patiente)';
+  const r=await j('/api/bulk?action=deploy',{method:'POST',body:JSON.stringify({names:[name]})});
+  const res=(r&&r[0])||{};
+  if(info&&!res.ok) info.innerHTML+=` <span class=bad>❌ ${res.msg||'échec'}</span>`;
+  await refreshStatus();
+}
+async function updateAgents(){
+  const bs=document.getElementById('bulkst'); bs.textContent='⏳ vérification des versions…';
+  const r=await j('/api/status?machine=all');
+  const stale=r.filter(s=>s.online && s.needs_update).map(s=>s.name);
+  if(!stale.length){ bs.innerHTML='<span class=ok>✅ tous les agents en ligne sont à jour (v'+(r.find(x=>x.agent_current)||{}).agent_current+')</span>'; return; }
+  if(!confirm('Mettre à jour l\\'agent sur '+stale.length+' PC : '+stale.join(', ')+' ?')){ bs.textContent=''; return; }
+  bs.textContent='⏳ mise à jour de '+stale.length+' agent(s)…';
+  const res=await j('/api/bulk?action=deploy',{method:'POST',body:JSON.stringify({names:stale})});
+  const ok=res.filter(x=>x.ok).length;
+  bs.innerHTML=`<span class=ok>✅ ${ok}/${stale.length} mis à jour</span>`+res.filter(x=>!x.ok).map(x=>` · <span class=bad>${x.name}: ${x.msg}</span>`).join('');
+  await refreshStatus();
 }
 async function save(){
   const r=await j('/api/allowlist',{method:'POST',body:document.getElementById('list').value});
