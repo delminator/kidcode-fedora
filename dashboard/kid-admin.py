@@ -1450,7 +1450,19 @@ class Handler(BaseHTTPRequestHandler):
             m = next((x for x in load_machines() if x["name"] == name), None)
             if not m:
                 return self._send(404, {"ok": False, "msg": "machine inconnue"})
-            r = write_timelimit(m, 23, 1, 0) if on else write_timelimit(m, 0, 0, 0)
+            if on:
+                r = write_timelimit(m, 23, 1, 0)
+            else:
+                # Déverrouillage parental : lève AUSSI le verrou-sabotage (latch)
+                # posé par le watchdog (kid-guard) en cas de tentative de
+                # désactivation, sinon le guard ré-applique le verrou en boucle.
+                try:
+                    ssh_run(m, "chattr -i /var/lib/kidtime/SABOTAGE-LOCK 2>/dev/null; "
+                               "rm -f /var/lib/kidtime/SABOTAGE-LOCK /var/lib/kidtime/TAMPER 2>/dev/null; "
+                               "echo OK", timeout=15)
+                except Exception:  # noqa
+                    pass
+                r = write_timelimit(m, 0, 0, 0)
             r["locked"] = on
             return self._send(200, r)
         if u.path == "/api/settings/save":
