@@ -479,9 +479,15 @@ def deploy_agent(m):
         # l'enfant). On pose le verrou d'install (respecté par le cron), on STOPPE
         # ses déclencheurs et on tue toute instance en cours. kid-guard.sh ré-arme
         # tout à la fin ; le verrou est levé quoi qu'il arrive.
+        # NB : pas de pkill ici — le motif "kidtime-guard" matcherait la ligne de
+        # commande de ce shell d'update lui-même et le tuerait en plein milieu
+        # (auto-kill). 'systemctl stop' coupe l'instance systemd, le verrou
+        # d'install neutralise la voie cron, et le débounce lockpc fait le reste.
         pre = ("mkdir -p /var/lib/kidtime; date +%s > /var/lib/kidtime/.installing; "
                "systemctl stop kidtime-guard.timer kidtime-guard.path kidtime-guard.service 2>/dev/null; "
-               "pkill -ef '/kidtime-guard' 2>/dev/null; "
+               "chattr -i /usr/local/bin/kidtime-enforce /usr/local/bin/kidtime-gate "
+               "/usr/local/bin/kidtime-status /etc/systemd/system/kidtime.service "
+               "/etc/systemd/system/kidtime.timer 2>/dev/null; "
                "rm -f /var/lib/kidtime/.strike 2>/dev/null; ")
         cmd = pre + f"bash /tmp/kid-timetrack.sh {acct}; rm -f /tmp/kid-timetrack.sh"
         # couche durcissement anti-sabotage (watchdog) si le script est présent

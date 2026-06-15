@@ -46,6 +46,15 @@ echo "==> Installation surveillance + quota pour le compte : $KID"
 mkdir -p /var/lib/kidtime
 date +%s > /var/lib/kidtime/.installing 2>/dev/null || true
 
+# Si le durcissement kid-guard est déjà passé, les fichiers de l'agent sont
+# IMMUABLES (chattr +i) -> un simple « cat > » échouerait (Opération non permise).
+# On lève l'immuabilité de ce qu'on va réécrire ; kid-guard la remettra ensuite.
+for _f in /usr/local/bin/kidtime-enforce /usr/local/bin/kidtime-gate \
+          /usr/local/bin/kidtime-status /etc/systemd/system/kidtime.service \
+          /etc/systemd/system/kidtime.timer; do
+  chattr -i "$_f" 2>/dev/null || true
+done
+
 # ---------------------------------------------------------------------------
 # 1+3b. Gardien kidtime + échantillonneur de temps par appli (1×/minute).
 # ---------------------------------------------------------------------------
