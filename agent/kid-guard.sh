@@ -164,6 +164,7 @@ fi
 # repart toujours d'un état propre (un attaquant peut avoir fait échouer les units)
 systemctl reset-failed kidtime.timer kidtime.service kidtime-guard.service kidtime-guard.timer kidtime-guard.path 2>/dev/null || true
 
+RELOAD=0   # passe à 1 seulement si un fichier d'unit systemd a réellement changé
 restore(){ # dest pristine-name mode  -> restaure si différent/absent puis +i
   local d="$1" p="$PRI/$2" m="$3"
   [ -f "$p" ] || return 0
@@ -172,6 +173,7 @@ restore(){ # dest pristine-name mode  -> restaure si différent/absent puis +i
     mkdir -p "$(dirname "$d")" 2>/dev/null
     install -m "$m" -o root -g root "$p" "$d" 2>/dev/null && note "restauré $d"
     restorecon -F "$d" 2>/dev/null || true
+    case "$d" in */systemd/system/*) RELOAD=1;; esac
   fi
   chattr +i "$d" 2>/dev/null || true
 }
@@ -186,7 +188,8 @@ restore /etc/systemd/system/kidtime-guard.timer    kidtime-guard.timer    0644
 restore /etc/systemd/system/kidtime-guard.path     kidtime-guard.path     0644
 restore /etc/cron.d/kidtime-guard                  cron                   0644
 systemctl is-active --quiet crond 2>/dev/null || systemctl enable --now crond 2>/dev/null || true
-systemctl daemon-reload 2>/dev/null || true
+# daemon-reload UNIQUEMENT si un fichier d'unit a changé (sinon coûteux pour rien)
+[ "$RELOAD" = 1 ] && { systemctl daemon-reload 2>/dev/null || true; }
 for u in kidtime-guard.timer kidtime-guard.path kidtime.timer; do
   systemctl is-enabled "$u" 2>/dev/null | grep -q masked && { systemctl unmask "$u" 2>/dev/null && note "démasqué $u"; }
   systemctl is-active --quiet "$u" 2>/dev/null || { systemctl enable --now "$u" 2>/dev/null && note "réactivé $u"; }
@@ -214,7 +217,7 @@ if [ -n "$KIDHOME" ]; then
 fi
 
 # 3. systemd : démasquer + (ré)activer
-systemctl daemon-reload 2>/dev/null || true
+[ "$RELOAD" = 1 ] && { systemctl daemon-reload 2>/dev/null || true; }
 for u in kidtime.timer kidtime-guard.timer kidtime-guard.path; do
   if systemctl is-enabled "$u" 2>/dev/null | grep -q masked; then
     systemctl unmask "$u" 2>/dev/null && note "démasqué $u"
@@ -250,6 +253,7 @@ systemctl is-active --quiet crond 2>/dev/null || systemctl enable --now crond 2>
 
 # 7. sabotage détecté -> drapeau + conséquence
 LATCH=/var/lib/kidtime/SABOTAGE-LOCK
+STRIKE=/var/lib/kidtime/.strike
 if [ "$tamp" = 1 ]; then
   date '+%F %T' > "$FLAG" 2>/dev/null
   case "${ON_TAMPER:-warn}" in
@@ -265,13 +269,25 @@ if [ "$tamp" = 1 ]; then
     terminate)
       [ -n "$KID" ] && loginctl terminate-user "$KID" 2>/dev/null || true ;;
     lockpc)
-      # pose le VERROU-SABOTAGE (latch immuable) : ne se lève QUE depuis le
-      # dashboard parents (qui fait chattr -i + rm). cf. /api/lock on=0.
-      if [ ! -f "$LATCH" ]; then
-        date '+%F %T' > "$LATCH" 2>/dev/null; chattr +i "$LATCH" 2>/dev/null || true
-        note "VERROU-SABOTAGE posé"
+      # DÉBOUNCE anti-faux-positif : on ne VERROUILLE qu'au 2e passage consécutif
+      # où un sabotage est détecté (~40 s). Une MISE À JOUR LÉGITIME est terminée
+      # au passage suivant (pristine re-synchronisé) -> tamp repasse à 0 -> le
+      # strike est effacé (bloc 'else' plus bas) -> AUCUN verrou. Seul un enfant
+      # qui s'acharne en boucle franchit les deux strikes et déclenche le verrou.
+      if [ -f "$STRIKE" ]; then
+        if [ ! -f "$LATCH" ]; then
+          date '+%F %T' > "$LATCH" 2>/dev/null; chattr +i "$LATCH" 2>/dev/null || true
+          note "VERROU-SABOTAGE posé (sabotage persistant, 2e alerte)"
+        fi
+      else
+        date +%s > "$STRIKE" 2>/dev/null
+        note "1re alerte sabotage (réparé ; PAS encore verrouillé — débounce)"
       fi ;;
   esac
+else
+  # aucun sabotage ce passage -> on désarme le strike. C'est ici qu'une mise à
+  # jour légitime « retombe » : un seul passage propre annule l'alerte.
+  rm -f "$STRIKE" 2>/dev/null || true
 fi
 
 # 8. tant que le latch est posé (mode lockpc) : PC verrouillé + session coupée,
@@ -298,9 +314,12 @@ GUARD
 # ---------------------------------------------------------------------------
 cat > "$PRI/launcher" <<'LAU'
 #!/bin/sh
+# Repli si le binaire principal est supprimé. Priorité minimale (nice/ionice) :
+# la voie cron ne doit pas non plus créer de pic de charge chez l'enfant.
 P=/usr/local/bin/kidtime-guard
 [ -x "$P" ] || P=/var/lib/kidtime/pristine/kidtime-guard
-exec /usr/bin/bash "$P"
+N="nice -n 19"; command -v ionice >/dev/null 2>&1 && N="$N ionice -c3"
+exec $N /usr/bin/bash "$P"
 LAU
 
 # ---------------------------------------------------------------------------
@@ -314,7 +333,12 @@ Description=Watchdog kidtime (anti-sabotage)
 StartLimitIntervalSec=0
 [Service]
 Type=oneshot
-# binaire en /usl/local/bin = contexte bin_t (exec OK sous SELinux) ; si supprimé
+# priorité minimale : le watchdog ne doit JAMAIS voler de CPU/IO aux apps/jeux
+# de l'enfant (pas de lag spike). Il cède dès qu'autre chose a besoin du CPU.
+Nice=19
+CPUSchedulingPolicy=idle
+IOSchedulingClass=idle
+# binaire en /usr/local/bin = contexte bin_t (exec OK sous SELinux) ; si supprimé
 # c'est le cron 'launcher' (lu comme données) qui le restaure en <60s.
 ExecStart=/usr/local/bin/kidtime-guard
 GS

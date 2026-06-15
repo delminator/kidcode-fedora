@@ -21,7 +21,7 @@ set -euo pipefail
 # Version du bundle agent (surveillance + quota + durcissement). À INCRÉMENTER à
 # chaque évolution de l'agent : le tableau de bord la compare à
 # /etc/kidtime/agent-version sur chaque PC et propose la mise à jour si différent.
-AGENT_VERSION=1.1.0
+AGENT_VERSION=1.1.2
 
 if [[ $EUID -ne 0 ]]; then
   echo "ERREUR : à lancer en root (sudo $0 <compte_enfant>)." >&2
@@ -37,6 +37,14 @@ if ! id "$KID" >/dev/null 2>&1; then
   exit 1
 fi
 echo "==> Installation surveillance + quota pour le compte : $KID"
+
+# Verrou d'installation : suspend le watchdog kid-guard pendant qu'on (ré)écrit
+# l'agent, pour qu'une MISE À JOUR LÉGITIME (fichiers d'unit qui changent) ne
+# soit PAS prise pour un sabotage et ne déclenche pas le verrou. Le watchdog
+# s'efface tant que ce fichier a moins de 120 s ; il sera nettoyé par kid-guard
+# (ou expirera tout seul) une fois l'install finie.
+mkdir -p /var/lib/kidtime
+date +%s > /var/lib/kidtime/.installing 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
 # 1+3b. Gardien kidtime + échantillonneur de temps par appli (1×/minute).
@@ -116,6 +124,11 @@ cat > /etc/systemd/system/kidtime.service <<'KS'
 Description=Gardien temps d'ecran enfants (kidtime)
 [Service]
 Type=oneshot
+# priorité minimale : l'échantillonnage (ps/dconf) ne doit pas créer de lag
+# pour l'enfant ; il cède le CPU/IO dès qu'autre chose en a besoin.
+Nice=19
+CPUSchedulingPolicy=idle
+IOSchedulingClass=idle
 ExecStart=/usr/local/bin/kidtime-enforce
 KS
 cat > /etc/systemd/system/kidtime.timer <<'KTM'

@@ -473,11 +473,22 @@ def deploy_agent(m):
             return {"ok": False, "msg": "agent/kid-timetrack.sh introuvable"}
         acct = m["account"]
         ssh_put_text(m, AGENT_SCRIPT.read_text(), "/tmp/kid-timetrack.sh")
-        cmd = f"bash /tmp/kid-timetrack.sh {acct}; rm -f /tmp/kid-timetrack.sh"
+        # Mise à jour SÛRE : on NEUTRALISE le watchdog déjà en place AVANT de
+        # toucher un seul fichier, sinon il prendrait l'update pour un sabotage
+        # (il restaurerait l'ancienne version et — en mode lockpc — verrouillerait
+        # l'enfant). On pose le verrou d'install (respecté par le cron), on STOPPE
+        # ses déclencheurs et on tue toute instance en cours. kid-guard.sh ré-arme
+        # tout à la fin ; le verrou est levé quoi qu'il arrive.
+        pre = ("mkdir -p /var/lib/kidtime; date +%s > /var/lib/kidtime/.installing; "
+               "systemctl stop kidtime-guard.timer kidtime-guard.path kidtime-guard.service 2>/dev/null; "
+               "pkill -ef '/kidtime-guard' 2>/dev/null; "
+               "rm -f /var/lib/kidtime/.strike 2>/dev/null; ")
+        cmd = pre + f"bash /tmp/kid-timetrack.sh {acct}; rm -f /tmp/kid-timetrack.sh"
         # couche durcissement anti-sabotage (watchdog) si le script est présent
         if GUARD_SCRIPT.exists():
             ssh_put_text(m, GUARD_SCRIPT.read_text(), "/tmp/kid-guard.sh")
             cmd += f"; bash /tmp/kid-guard.sh {acct}; rm -f /tmp/kid-guard.sh"
+        cmd += "; rm -f /var/lib/kidtime/.installing /var/lib/kidtime/.strike"
         rc, out, err = ssh_run(m, cmd, timeout=300)
         if rc == 0:
             return {"ok": True, "msg": f"agent v{AGENT_VERSION} déployé"}
