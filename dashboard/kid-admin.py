@@ -44,6 +44,11 @@ MACHINES_CONF = CONFIG_DIR / "machines.conf"
 MASTER_LIST = CONFIG_DIR / "allowlist.txt"
 REMOTE_PATH = "/etc/kid-install-allowlist"
 PKG_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._+-]*$")
+# Politique maître du filtre web (pare-feu DNS kidfw) : mode + domaines.
+FW_MODE_PATH = CONFIG_DIR / "firewall-mode"
+FW_LIST_PATH = CONFIG_DIR / "firewall-domains.txt"
+FW_MODES = ("off", "blacklist", "whitelist")
+DOMAIN_RE = re.compile(r"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?\.[a-z]{2,}$")
 
 
 # ── SSH via paramiko (multiplateforme, aucune dépendance sshpass) ──────────
@@ -535,6 +540,12 @@ def bulk_action(action, params=None, names=None):
         machines = [m for m in machines if m["name"] in names]
     if action == "resolve":
         return resolve_all(machines)
+    if action == "firewall":
+        fw = load_firewall()
+        mode = params.get("mode", fw["mode"])
+        domains = params.get("domains", fw["domains"])
+        def fn(m): return {"name": m["name"], **apply_firewall(m, mode, domains)}
+        return _parallel(machines, fn)
     if action == "lock":
         def fn(m): return {"name": m["name"], **write_timelimit(m, 23, 1, 0)}
     elif action == "unlock":
@@ -672,6 +683,52 @@ def _learn_ids(results):
         _write_machines(machines)
 
 
+def verify_ips(machines):
+    """Vérifie que chaque IP enregistrée pointe BIEN vers le PC attendu.
+    Se connecte PAR IP (pas par mDNS), lit hostname + machine-id, compare à l'ID
+    stable mémorisé (kid_id). Détecte le cas où un PC est joignable mais que l'IP
+    a été réattribuée à une AUTRE machine (DHCP) — invisible pour l'auto-réparation
+    qui ne se déclenche que sur PC hors-ligne. Apprend l'ID au 1er contact."""
+    def chk(m):
+        if not m.get("ip"):
+            return {"name": m["name"], "ip": "", "state": "noip", "msg": "aucune IP enregistrée"}
+        mi = {**m, "dns": ""}        # FORCER la connexion par IP (on vérifie l'IP)
+        try:
+            rc, out, err = ssh_run(
+                mi, "printf '%s|%s' \"$(hostname)\" \"$(cat /etc/machine-id 2>/dev/null)\"",
+                timeout=12, connect_timeout=6)
+            if rc != 0:
+                return {"name": m["name"], "ip": m["ip"], "state": "offline", "msg": "injoignable"}
+            p = (out.strip().split("|") + ["", ""])[:2]
+            host, mid = p[0].strip(), p[1].strip()
+            known = (m.get("kid_id") or "").strip()
+            if not mid:
+                state = "online"          # joignable mais machine-id illisible
+            elif not known:
+                state = "learn"           # 1er contact : on apprend l'ID
+            elif mid.startswith(known) or known.startswith(mid):
+                state = "ok"              # l'IP pointe bien vers le bon PC
+            else:
+                state = "mismatch"        # l'IP pointe vers une AUTRE machine !
+            return {"name": m["name"], "ip": m["ip"], "hostname": host,
+                    "mid": mid, "expected": m.get("name"), "state": state}
+        except Exception as e:  # noqa
+            return {"name": m["name"], "ip": m["ip"], "state": "offline", "msg": _ssh_err(e)}
+    results = _parallel(machines, chk)
+    # apprend l'ID des machines vues pour la 1re fois (écriture unique)
+    learn = {r["name"]: r["mid"] for r in results
+             if r.get("state") == "learn" and r.get("mid")}
+    if learn:
+        cur = load_machines()
+        for m in cur:
+            if m["name"] in learn and not m.get("kid_id"):
+                m["kid_id"] = learn[m["name"]]
+        _write_machines(cur)
+    for r in results:
+        r.pop("mid", None)               # ne pas exposer l'ID au navigateur
+    return results
+
+
 def load_master():
     if MASTER_LIST.exists():
         return MASTER_LIST.read_text()
@@ -714,6 +771,99 @@ def push_to(m):
         return {"ok": False, "msg": _ssh_err(e)}
 
 
+# ── Filtre web parental (pare-feu DNS kidfw) ──────────────────────────────
+def load_firewall():
+    """Politique maître locale : mode + domaines (un par ligne)."""
+    mode = "off"
+    if FW_MODE_PATH.exists():
+        m = FW_MODE_PATH.read_text().strip()
+        if m in FW_MODES:
+            mode = m
+    domains = FW_LIST_PATH.read_text() if FW_LIST_PATH.exists() else ""
+    n = len([d for d in _fw_domains(domains)])
+    return {"mode": mode, "domains": domains, "count": n}
+
+
+def _fw_domains(text):
+    """Normalise/valide une liste de domaines (minuscules, sans schéma/chemin)."""
+    out, seen = [], set()
+    for raw in (text or "").splitlines():
+        d = raw.strip().lower()
+        if not d or d.startswith("#"):
+            continue
+        d = re.sub(r"^[a-z]+://", "", d)
+        d = d.split("/")[0].strip()
+        d = re.sub(r"[^a-z0-9._-]", "", d)
+        if d and d not in seen and DOMAIN_RE.match(d):
+            seen.add(d)
+            out.append(d)
+    return out
+
+
+def save_firewall(mode, text):
+    """Enregistre la politique maître (validée) côté dashboard."""
+    mode = (mode or "off").strip().lower()
+    if mode not in FW_MODES:
+        return {"ok": False, "msg": "mode invalide"}
+    domains = _fw_domains(text)
+    bad = [r.strip() for r in (text or "").splitlines()
+           if r.strip() and not r.strip().startswith("#")
+           and r.strip().lower() not in domains
+           and re.sub(r"[^a-z0-9._-]", "", r.strip().lower().split("/")[0]) not in domains]
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    FW_MODE_PATH.write_text(mode + "\n")
+    FW_LIST_PATH.write_text("\n".join(domains) + ("\n" if domains else ""))
+    for p in (FW_MODE_PATH, FW_LIST_PATH):
+        try:
+            os.chmod(p, 0o600)
+        except OSError:
+            pass
+    return {"ok": True, "mode": mode, "count": len(domains), "rejected": bad[:8]}
+
+
+def apply_firewall(m, mode, domains_text):
+    """Pousse la politique sur un PC : écrit firewall.conf + firewall.list (live ET
+    pristine, sous verrou d'install pour ne pas déclencher le watchdog), puis
+    `kidfw apply`. Le watchdog garde ensuite l'état (source de vérité = pristine)."""
+    mode = (mode or "off").strip().lower()
+    if mode not in FW_MODES:
+        return {"ok": False, "msg": "mode invalide"}
+    listtext = "\n".join(_fw_domains(domains_text))
+    listtext = (listtext + "\n") if listtext else ""
+    try:
+        ssh_put_text(m, listtext, "/tmp/.kidfw.list.new")
+        cmd = (
+            "set -e\n"
+            "test -x /usr/local/bin/kidfw || { echo NO_KIDFW; exit 3; }\n"
+            "mkdir -p /var/lib/kidtime/pristine /etc/kidtime\n"
+            "date +%s > /var/lib/kidtime/.installing\n"
+            "chattr -i /etc/kidtime/firewall.conf /etc/kidtime/firewall.list "
+            "/var/lib/kidtime/pristine/firewall.conf /var/lib/kidtime/pristine/firewall.list "
+            "2>/dev/null || true\n"
+            "rm -f /var/lib/kidtime/.strike 2>/dev/null || true\n"
+            f"printf 'MODE=%s\\nUPSTREAM=9.9.9.9\\n' {mode} > /etc/kidtime/firewall.conf\n"
+            "install -m0644 /tmp/.kidfw.list.new /etc/kidtime/firewall.list\n"
+            "cp -a /etc/kidtime/firewall.conf /var/lib/kidtime/pristine/firewall.conf\n"
+            "cp -a /etc/kidtime/firewall.list /var/lib/kidtime/pristine/firewall.list\n"
+            "chmod 0644 /etc/kidtime/firewall.conf /etc/kidtime/firewall.list\n"
+            "restorecon -F /etc/kidtime/firewall.conf /etc/kidtime/firewall.list 2>/dev/null || true\n"
+            "/usr/local/bin/kidfw apply\n"
+            "chattr +i /etc/kidtime/firewall.conf /etc/kidtime/firewall.list "
+            "/var/lib/kidtime/pristine/firewall.conf /var/lib/kidtime/pristine/firewall.list "
+            "2>/dev/null || true\n"
+            "rm -f /tmp/.kidfw.list.new /var/lib/kidtime/.installing /var/lib/kidtime/.strike 2>/dev/null || true\n"
+            "/usr/local/bin/kidfw status\n")
+        rc, out, err = ssh_run(m, cmd, timeout=180)
+        if "NO_KIDFW" in (out + err):
+            return {"ok": False, "msg": "agent trop ancien (kidfw absent) — mets l'agent à jour"}
+        if rc != 0:
+            return {"ok": False, "msg": (err.strip() or out.strip() or "échec")[:160]}
+        lab = {"off": "désactivé", "blacklist": "liste noire", "whitelist": "liste blanche"}.get(mode, mode)
+        return {"ok": True, "msg": f"pare-feu {lab} ({out.strip().splitlines()[-1] if out.strip() else 'ok'})"}
+    except Exception as e:  # noqa
+        return {"ok": False, "msg": _ssh_err(e)}
+
+
 def fetch_logs(m, n=40):
     try:
         rc, out, err = ssh_run(
@@ -725,7 +875,7 @@ def fetch_logs(m, n=40):
 
 def machine_status(m):
     """Vérifie si la machine est joignable + quelques infos de santé."""
-    cmd = ("printf '%s|%s|%s|%s|%s|%s|%s|%s' "
+    cmd = ("printf '%s|%s|%s|%s|%s|%s|%s|%s|%s' "
            "\"$(hostname)\" "
            "\"$(uptime -p 2>/dev/null)\" "
            "\"$(wc -l < /etc/kid-install-allowlist 2>/dev/null)\" "
@@ -733,18 +883,21 @@ def machine_status(m):
            "\"$(journalctl -t install-pkg --no-pager 2>/dev/null | grep -c 'REFUSÉ')\" "
            "\"$(cat /etc/machine-id 2>/dev/null | cut -c1-16)\" "
            "\"$(cat /etc/kidtime/agent-version 2>/dev/null)\" "
-           "\"$(test -e /var/lib/kidtime/SABOTAGE-LOCK && echo 1)\"")
+           "\"$(test -e /var/lib/kidtime/SABOTAGE-LOCK && echo 1)\" "
+           "\"$(sed -n 's/^MODE=//p' /etc/kidtime/firewall.conf 2>/dev/null)\"")
     try:
         rc, out, err = ssh_run(m, cmd, timeout=15, connect_timeout=6)
         if rc != 0:
             return {"online": False, "msg": "injoignable"}
-        p = (out.strip().split("|") + [""] * 8)[:8]
+        p = (out.strip().split("|") + [""] * 9)[:9]
         ver = p[6].strip()
+        fw = p[8].strip() if p[8].strip() in FW_MODES else "off"
         return {"online": True, "hostname": p[0], "uptime": p[1], "allowlist": p[2],
                 "accepted": p[3], "refused": p[4], "mid": p[5],
                 "version": ver, "agent_current": AGENT_VERSION,
                 "needs_update": ver != AGENT_VERSION,
-                "tamper_lock": p[7].strip() == "1"}
+                "tamper_lock": p[7].strip() == "1",
+                "firewall": fw}
     except Exception as e:  # noqa
         return {"online": False, "msg": _ssh_err(e)}
 
@@ -906,10 +1059,12 @@ td:first-child{white-space:nowrap;color:#ffd479;font-family:ui-monospace,monospa
       <button class=row onclick="bulk('unlock','🔓 Déverrouiller toute la classe ?')">🔓 Déverrouiller tous</button>
       <button class=row onclick="bulkTime()">⏱ Temps pour tous</button>
       <button class=row onclick="bulk('resolve')">🔄 Résoudre les IP</button>
+      <button class=row onclick="verifyIps()">🔎 Vérifier IP ↔ PC</button>
       <button class=row onclick="bulk('deploy','🚀 Déployer/réinstaller l’agent sur TOUS les PC en ligne ?')">🚀 Déployer l’agent</button>
       <button class=row onclick="updateAgents()">⬆️ Mettre à jour les agents obsolètes</button>
       <span class=status id=bulkst></span>
     </div>
+    <div id=verifylist></div>
     <div class=bar style="margin:0 0 10px;gap:8px;align-items:center;flex-wrap:wrap">
       🏷️ Filtrer / cibler une classe : <select id=grpfilter onchange=renderMachines()></select>
       <button class=row onclick=toggleView()>🔀 Vue : <span id=viewlabel>cartes</span></button>
@@ -947,6 +1102,34 @@ salle-02|192.168.1.102|root|MDP|eleve|timetrack|salle-02.local" style="width:100
       <button onclick=pushAll()>⬆️ Enregistrer + Pousser vers TOUS</button>
       <span class=status id=lstatus></span>
     </div>
+  </div>
+
+  <div class=card>
+    <h2>🛡️ Pare-feu web (filtre par domaine)</h2>
+    <p class=muted>Filtre parental par <b>nom de domaine</b> (DNS local + redirection).
+    Choisis le mode, liste les domaines (un par ligne, ex. <code>youtube.com</code> —
+    couvre les sous-domaines), puis applique à la classe ciblée ou à tous. Protégé par le
+    watchdog : un enfant ne peut pas le désactiver. <b>Liste blanche</b> = seuls ces domaines
+    passent ; <b>liste noire</b> = tout sauf ces domaines.</p>
+    <div class=bar style="gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:6px">
+      <b>Mode :</b>
+      <label><input type=radio name=fwmode value=off> 🔓 Désactivé</label>
+      <label><input type=radio name=fwmode value=blacklist> ⛔ Liste noire</label>
+      <label><input type=radio name=fwmode value=whitelist> ✅ Liste blanche</label>
+      <span class=muted id=fwcount></span>
+    </div>
+    <textarea id=fwlist spellcheck=false placeholder="youtube.com
+tiktok.com
+roblox.com" style="width:100%;height:120px;font-family:monospace;font-size:13px"></textarea>
+    <div class=bar style="flex-wrap:wrap;gap:6px;align-items:center">
+      <button class=primary onclick=saveFw()>💾 Enregistrer la politique</button>
+      <button onclick=applyFw()>🛡️ Appliquer (classe ciblée / tous)</button>
+      <span class=status id=fwstatus></span>
+    </div>
+    <p class=muted style="font-size:11px">En liste blanche, l'accès admin (SSH, LAN, mDNS) et
+    les domaines système (maj Fedora, heure réseau) restent toujours autorisés — pas de risque
+    de couper le PC. Le filtre DNS ne bloque pas un navigateur qui force du DNS-over-HTTPS ;
+    les PC enfants en mode console n'en ont pas. Cible une classe avec le filtre 🏷️ ci-dessus.</p>
   </div>
 
   <div class=card>
@@ -995,6 +1178,7 @@ async function load(){
   if(window._VIEW===undefined) window._VIEW='cards';
   renderMachines();
   loadSet();
+  loadFw();
   if(window._SETTINGS===undefined) window._SETTINGS=(MACHINES.length===0);
   applySettingsVis();
 }
@@ -1157,6 +1341,25 @@ async function bulk(action,confirmMsg){
   st.innerHTML=s;
   refreshStatus(); MACHINES.forEach(x=>loadTL(x.name));
 }
+async function verifyIps(){
+  const sc=_scopeNames();
+  const st=document.getElementById('bulkst'); st.textContent='⏳ vérification des correspondances IP ↔ PC…';
+  const r=await j('/api/verify-ips',{method:'POST',body:JSON.stringify(sc.names?{names:sc.names}:{})});
+  const dl=document.getElementById('verifylist');
+  const ico={ok:'✅',mismatch:'⛔',learn:'🆕',online:'❔',offline:'🔌',noip:'⚠️'};
+  const lbl={ok:'correspond',mismatch:'MAUVAIS PC — l’IP pointe ailleurs !',learn:'ID mémorisé (1er contact)',online:'joignable (ID illisible)',offline:'injoignable',noip:'pas d’IP'};
+  const bad=r.filter(x=>x.state==='mismatch').length;
+  dl.innerHTML='<table><tr><th></th><th>Nom</th><th>IP</th><th>Hôte réel</th><th>État</th></tr>'+
+    r.map(function(x){
+      var cls=x.state==='mismatch'?'bad':(x.state==='ok'?'ok':'muted');
+      return '<tr><td>'+(ico[x.state]||'?')+'</td><td><b>'+x.name+'</b></td><td style="font-size:12px">'+(x.ip||'—')+'</td>'+
+        '<td style="font-size:12px">'+(x.hostname||'<span class=muted>—</span>')+'</td>'+
+        '<td><span class='+cls+'>'+(lbl[x.state]||x.state)+'</span>'+(x.msg?(' <span class=muted>('+x.msg+')</span>'):'')+'</td></tr>';
+    }).join('')+'</table>'+
+    (bad?('<p class=bad>⛔ '+bad+' PC : l’IP enregistrée pointe vers une AUTRE machine. Clique « 🔄 Résoudre les IP » (mDNS) pour corriger, ou corrige l’IP dans ⚙️ Réglages.</p>')
+        :'<p class=ok>✅ Toutes les IP joignables correspondent au bon PC.</p>');
+  st.innerHTML=bad?('<span class=bad>⛔ '+bad+' incohérence(s)</span>'):'<span class=ok>✅ correspondances OK</span>';
+}
 async function bulkTime(){
   const hs=prompt('Heure de DÉBUT autorisée (0-24) :','8'); if(hs===null) return;
   const he=prompt('Heure de FIN autorisée (0-24) :','17'); if(he===null) return;
@@ -1195,6 +1398,32 @@ async function importBulk(){
   const r=await j('/api/settings/import-bulk',{method:'POST',body:JSON.stringify({text:t})});
   st.innerHTML='<span class=ok>✅ '+r.added+' ajoutés · '+r.updated+' maj</span>'+(r.errors.length?(' · <span class=bad>⚠️ '+r.errors.length+'</span> : '+r.errors.slice(0,3).join(' · ')):'');
   if(r.added||r.updated){ document.getElementById('bulktext').value=''; load(); }
+}
+async function loadFw(){
+  const r=await j('/api/firewall');
+  document.getElementById('fwlist').value=r.domains||'';
+  const rb=document.querySelector('input[name=fwmode][value="'+(r.mode||'off')+'"]'); if(rb) rb.checked=true;
+  document.getElementById('fwcount').textContent=(r.count||0)+' domaine(s)';
+}
+function fwMode(){ const c=document.querySelector('input[name=fwmode]:checked'); return c?c.value:'off'; }
+async function saveFw(){
+  const st=document.getElementById('fwstatus'); st.textContent='⏳…';
+  const r=await j('/api/firewall',{method:'POST',body:JSON.stringify({mode:fwMode(),domains:document.getElementById('fwlist').value})});
+  if(!r.ok){ st.innerHTML='<span class=bad>❌ '+(r.msg||'erreur')+'</span>'; return false; }
+  document.getElementById('fwcount').textContent=r.count+' domaine(s)';
+  st.innerHTML='<span class=ok>✅ politique enregistrée ('+r.count+' domaine(s))</span>'+(r.rejected&&r.rejected.length?(' · <span class=bad>⚠️ ignorés: '+r.rejected.join(', ')+'</span>'):'');
+  return true;
+}
+async function applyFw(){
+  const sc=_scopeNames(); const mode=fwMode();
+  const lbl={off:'DÉSACTIVER le filtre web',blacklist:'appliquer la LISTE NOIRE',whitelist:'appliquer la LISTE BLANCHE (tout le reste bloqué)'}[mode];
+  if(!confirm('🛡️ '+lbl+(sc.names?(' sur la classe « '+sc.g+' » ('+sc.names.length+' PC)'):' sur TOUS les PC')+' ?')) return;
+  if(!(await saveFw())) return;
+  const st=document.getElementById('fwstatus'); st.textContent='⏳ application en cours…';
+  const r=await j('/api/bulk?action=firewall',{method:'POST',body:JSON.stringify(Object.assign({mode:mode,domains:document.getElementById('fwlist').value}, sc.names?{names:sc.names}:{}))});
+  const ok=r.filter(x=>x.ok).length, ko=r.length-ok;
+  st.innerHTML='<span class=ok>✅ appliqué à '+ok+' PC</span>'+(ko?(' · <span class=bad>❌ '+ko+'</span> — '+r.filter(x=>!x.ok).map(x=>x.name+' ('+(x.msg||'?')+')').slice(0,4).join(' · ')):'');
+  refreshStatus();
 }
 async function loadSet(){
   const L=await j('/api/settings'); window._SET=L;
@@ -1292,8 +1521,9 @@ async function refreshStatus(){
       else ver=` · <span class=ok>agent v${s.version} ✓</span>`;
     }
     const tl=s.tamper_lock?` · <span class=bad>⛔ verrouillé (sabotage) — déverrouille avec 🔓</span>`:'';
+    const fw=(s.firewall&&s.firewall!=='off')?` · <span class=ok>🛡️ ${s.firewall==='whitelist'?'liste blanche':'liste noire'}</span>`:'';
     if(info) info.innerHTML=s.online
-      ? `<span class=ok>en ligne</span>${s.uptime?(' · '+s.uptime):''}${s.healed?(' · <span class=ok>🩹 IP réparée → '+s.healed+'</span>'):''}${ver}${tl}`
+      ? `<span class=ok>en ligne</span>${s.uptime?(' · '+s.uptime):''}${s.healed?(' · <span class=ok>🩹 IP réparée → '+s.healed+'</span>'):''}${ver}${fw}${tl}`
       : `<span class=bad>hors ligne</span> (${s.msg||'?'})`;
   });
   // une IP a été auto-réparée → recharger les adresses affichées
@@ -1438,6 +1668,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, machines_public())
         if u.path == "/api/discover":
             return self._send(200, discover_agents())
+        if u.path == "/api/firewall":
+            return self._send(200, load_firewall())
         return self._send(404, "not found", "text/plain")
 
     def do_POST(self):
@@ -1483,6 +1715,22 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(200, bulk_action(action, params, names))
         if u.path == "/api/allowlist":
             return self._send(200, save_master(body))
+        if u.path == "/api/firewall":
+            try:
+                d = json.loads(body or "{}")
+            except ValueError:
+                d = {}
+            return self._send(200, save_firewall(d.get("mode", "off"), d.get("domains", "")))
+        if u.path == "/api/verify-ips":
+            try:
+                d = json.loads(body or "{}")
+            except ValueError:
+                d = {}
+            machines = load_machines()
+            names = d.get("names")
+            if names:
+                machines = [m for m in machines if m["name"] in names]
+            return self._send(200, verify_ips(machines))
         if u.path == "/api/push":
             q = parse_qs(u.query)
             name = q.get("machine", [""])[0]

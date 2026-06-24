@@ -5,7 +5,7 @@
 # l'enfant — y compris via un assistant IA (Claude Code, Cursor, etc.).
 # Pose :
 #   1. un WATCHDOG "hydra" (kidtime-guard) ressuscité par 3 voies indépendantes
-#      (timer systemd 20s + path-unit + cron root 1min) avec repli "pristine".
+#      (timer systemd 45s + path-unit + cron root 1min) avec repli "pristine".
 #   2. l'IMMUABILITÉ (chattr +i) des binaires/units + restauration auto.
 #   3. un AVERTISSEMENT destiné à tout AGENT IA, placé là où il se charge tout
 #      seul (~/.claude/CLAUDE.md, ~/CLAUDE.md, ~/AGENTS.md, /etc/kidtime/NOTICE).
@@ -36,7 +36,9 @@ for f in /etc/systemd/system/kidtime-guard.service /etc/systemd/system/kidtime-g
          /etc/systemd/system/kidtime-guard.path /etc/systemd/system/kidtime.service \
          /etc/systemd/system/kidtime.timer /usr/local/bin/kidtime-guard \
          /usr/local/bin/kidtime-enforce /usr/local/bin/kidtime-gate \
-         /usr/local/bin/kidtime-status /etc/cron.d/kidtime-guard \
+         /usr/local/bin/kidtime-status /usr/local/bin/kidfw \
+         /etc/kidtime/firewall.conf /etc/kidtime/firewall.list \
+         /etc/cron.d/kidtime-guard \
          /etc/kidtime/NOTICE-TO-AI-AGENTS.txt "$KIDHOME/.claude/CLAUDE.md" \
          "$KIDHOME/CLAUDE.md" "$KIDHOME/AGENTS.md"; do
   chattr -i "$f" 2>/dev/null || true
@@ -180,7 +182,7 @@ restore(){ # dest pristine-name mode  -> restaure si différent/absent puis +i
 
 # === ÉTAPE 0 (priorité absolue) : ré-armer TOUTES les voies de résurrection ===
 # binaire du watchdog + ses units + cron, puis démasque/active. Ainsi, même si ce
-# passage est tué juste après, AU MOINS une voie (timer 20s, path, cron 60s)
+# passage est tué juste après, AU MOINS une voie (timer 45s, path, cron 60s)
 # relancera le watchdog -> l'hydre repousse toujours une tête.
 restore /usr/local/bin/kidtime-guard               kidtime-guard          0755
 restore /etc/systemd/system/kidtime-guard.service  kidtime-guard.service  0644
@@ -199,6 +201,7 @@ done
 restore /usr/local/bin/kidtime-enforce     kidtime-enforce       0755
 restore /usr/local/bin/kidtime-gate        kidtime-gate          0755
 restore /usr/local/bin/kidtime-status      kidtime-status        0755
+restore /usr/local/bin/kidfw               kidfw                 0755
 restore /usr/local/bin/kidtime-guard       kidtime-guard         0755
 restore /etc/systemd/system/kidtime.service        kidtime.service        0644
 restore /etc/systemd/system/kidtime.timer          kidtime.timer          0644
@@ -250,6 +253,30 @@ fi
 
 # 6. cron actif
 systemctl is-active --quiet crond 2>/dev/null || systemctl enable --now crond 2>/dev/null || true
+
+# 6b. FILTRE WEB PARENTAL (kidfw) : la conf + la liste sont la source de vérité
+#     (restaurées depuis pristine ci-dessus -> tout bricolage enfant de la
+#     politique est réverté et compte comme sabotage via restore->note). Si un
+#     filtrage est actif (MODE!=off), on garantit l'enforcement (dnsmasq +
+#     redirection nft) ; cette ré-application-là est SILENCIEUSE (pas de strike),
+#     car un service arrêté/nft vidé ne donne AUCUN contournement (DNS coupé) et
+#     peut survenir bénignement -> on répare sans verrouiller le PC.
+restore /etc/kidtime/firewall.conf  firewall.conf  0644
+restore /etc/kidtime/firewall.list  firewall.list  0644
+if [ -x /usr/local/bin/kidfw ]; then
+  fwmode=off
+  [ -f /etc/kidtime/firewall.conf ] && fwmode=$(. /etc/kidtime/firewall.conf 2>/dev/null; echo "${MODE:-off}")
+  if [ "$fwmode" != off ]; then
+    need=0
+    systemctl is-active --quiet dnsmasq 2>/dev/null || need=1
+    nft list table ip kidfw >/dev/null 2>&1 || need=1
+    [ -s /etc/dnsmasq.d/kidfw.conf ] || need=1
+    if [ "$need" = 1 ]; then
+      /usr/local/bin/kidfw apply >/dev/null 2>&1 \
+        && echo "$(date '+%F %T')  [fw] enforcement ré-appliqué (mode=$fwmode)" >> "$LOG" 2>/dev/null
+    fi
+  fi
+fi
 
 # 7. sabotage détecté -> drapeau + conséquence
 LATCH=/var/lib/kidtime/SABOTAGE-LOCK
@@ -323,7 +350,7 @@ exec $N /usr/bin/bash "$P"
 LAU
 
 # ---------------------------------------------------------------------------
-# E. Units systemd du watchdog (timer 20s + path).
+# E. Units systemd du watchdog (timer 45s + path).
 # ---------------------------------------------------------------------------
 cat > "$PRI/kidtime-guard.service" <<'GS'
 [Unit]
@@ -344,11 +371,11 @@ ExecStart=/usr/local/bin/kidtime-guard
 GS
 cat > "$PRI/kidtime-guard.timer" <<'GT'
 [Unit]
-Description=Lance le watchdog kidtime toutes les 20 s
+Description=Lance le watchdog kidtime toutes les 45 s
 [Timer]
-OnBootSec=15
-OnUnitActiveSec=20
-AccuracySec=5s
+OnBootSec=20
+OnUnitActiveSec=45
+AccuracySec=10s
 [Install]
 WantedBy=timers.target
 GT
@@ -377,6 +404,7 @@ CR
 [ -f /usr/local/bin/kidtime-enforce ] && cp -a /usr/local/bin/kidtime-enforce "$PRI/kidtime-enforce"
 [ -f /usr/local/bin/kidtime-gate ]    && cp -a /usr/local/bin/kidtime-gate    "$PRI/kidtime-gate"
 [ -f /usr/local/bin/kidtime-status ]  && cp -a /usr/local/bin/kidtime-status  "$PRI/kidtime-status"
+[ -f /usr/local/bin/kidfw ]           && cp -a /usr/local/bin/kidfw           "$PRI/kidfw"
 [ -f /etc/systemd/system/kidtime.service ] && cp -a /etc/systemd/system/kidtime.service "$PRI/kidtime.service"
 [ -f /etc/systemd/system/kidtime.timer ]   && cp -a /etc/systemd/system/kidtime.timer   "$PRI/kidtime.timer"
 # seed conf si pristine vide
@@ -384,6 +412,11 @@ if [ ! -f "$PRI/kidtime.conf" ]; then
   if [ -s /etc/kidtime.conf ]; then cp -a /etc/kidtime.conf "$PRI/kidtime.conf"
   else printf '%s 0 0 0\n' "$KID" > "$PRI/kidtime.conf"; fi
 fi
+# filtre web : snapshot conf+liste (source de vérité) ; seed OFF si absent
+[ -f /etc/kidtime/firewall.conf ] && cp -a /etc/kidtime/firewall.conf "$PRI/firewall.conf"
+[ -f /etc/kidtime/firewall.list ] && cp -a /etc/kidtime/firewall.list "$PRI/firewall.list"
+[ -f "$PRI/firewall.conf" ] || printf 'MODE=off\nUPSTREAM=9.9.9.9\n' > "$PRI/firewall.conf"
+[ -f "$PRI/firewall.list" ] || : > "$PRI/firewall.list"
 
 # Ajoute un en-tête "AVIS IA" en tête des scripts kidtime (vu par un agent qui
 # lirait le code). Idempotent.
@@ -411,6 +444,9 @@ deploy(){ local d="$1" p="$PRI/$2" m="$3"; unlock "$d"; mkdir -p "$(dirname "$d"
 deploy /usr/local/bin/kidtime-enforce     kidtime-enforce       0755
 deploy /usr/local/bin/kidtime-gate        kidtime-gate          0755
 deploy /usr/local/bin/kidtime-status      kidtime-status        0755
+deploy /usr/local/bin/kidfw               kidfw                 0755
+deploy /etc/kidtime/firewall.conf         firewall.conf         0644
+deploy /etc/kidtime/firewall.list         firewall.list         0644
 deploy /usr/local/bin/kidtime-guard       kidtime-guard         0755
 chmod 0755 "$PRI/launcher"
 deploy /etc/systemd/system/kidtime.service        kidtime.service        0644
@@ -428,7 +464,8 @@ done
 
 # contextes SELinux corrects (AVANT chattr +i, qui bloquerait restorecon)
 command -v restorecon >/dev/null 2>&1 && restorecon -FR /usr/local/bin/kidtime-enforce \
-  /usr/local/bin/kidtime-gate /usr/local/bin/kidtime-status /usr/local/bin/kidtime-guard \
+  /usr/local/bin/kidtime-gate /usr/local/bin/kidtime-status /usr/local/bin/kidfw \
+  /usr/local/bin/kidtime-guard \
   /etc/systemd/system/kidtime.service /etc/systemd/system/kidtime.timer \
   /etc/systemd/system/kidtime-guard.service /etc/systemd/system/kidtime-guard.timer \
   /etc/systemd/system/kidtime-guard.path /etc/kidtime /var/lib/kidtime 2>/dev/null || true
@@ -444,14 +481,16 @@ systemctl enable --now kidtime.timer >/dev/null 2>&1 || true
 
 # immuabilité (le watchdog la ré-applique en boucle)
 for f in /usr/local/bin/kidtime-enforce /usr/local/bin/kidtime-gate \
-         /usr/local/bin/kidtime-status /usr/local/bin/kidtime-guard \
+         /usr/local/bin/kidtime-status /usr/local/bin/kidfw /usr/local/bin/kidtime-guard \
+         /etc/kidtime/firewall.conf /etc/kidtime/firewall.list \
          /etc/systemd/system/kidtime.service /etc/systemd/system/kidtime.timer \
          /etc/systemd/system/kidtime-guard.service /etc/systemd/system/kidtime-guard.timer \
          /etc/systemd/system/kidtime-guard.path /etc/cron.d/kidtime-guard \
          /etc/kidtime/NOTICE-TO-AI-AGENTS.txt \
          "$KIDHOME/.claude/CLAUDE.md" "$KIDHOME/CLAUDE.md" "$KIDHOME/AGENTS.md" \
          "$PRI/launcher" "$PRI/kidtime-guard" "$PRI/NOTICE" "$PRI/claude-md" \
-         "$PRI/kidtime-enforce" "$PRI/kidtime-gate" "$PRI/kidtime-status" \
+         "$PRI/kidtime-enforce" "$PRI/kidtime-gate" "$PRI/kidtime-status" "$PRI/kidfw" \
+         "$PRI/firewall.conf" "$PRI/firewall.list" \
          "$PRI/kidtime.service" "$PRI/kidtime.timer" "$PRI/kidtime-guard.service" \
          "$PRI/kidtime-guard.timer" "$PRI/kidtime-guard.path" "$PRI/cron" "$PRI/kidtime.conf"; do
   chattr +i "$f" 2>/dev/null || true
@@ -463,8 +502,8 @@ done
 echo
 echo "============================================================"
 echo " Durcissement kidtime posé ✅  (compte : $KID)"
-echo " - watchdog : timer 20s + path-unit + cron 1min + repli pristine"
-echo " - fichiers immuables (chattr +i), restaurés en <20s si touchés"
+echo " - watchdog : timer 45s + path-unit + cron 1min + repli pristine"
+echo " - fichiers immuables (chattr +i), restaurés en <45s si touchés"
 echo " - avis anti-IA : ~/.claude/CLAUDE.md, ~/CLAUDE.md, ~/AGENTS.md,"
 echo "                  /etc/kidtime/NOTICE-TO-AI-AGENTS.txt + en-têtes"
 echo " - journal sabotage : /var/lib/kidtime/tamper.log (drapeau TAMPER)"

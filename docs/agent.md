@@ -170,10 +170,11 @@ machine 100 % console pour des enfants plus grands, curieux de la ligne de comma
 assistant IA). Il ajoute :
 
 - un **watchdog « hydre »** (`kidtime-guard`) relancé par **trois voies indépendantes** —
-  timer systemd (20 s), `path`-unit (sur modification de fichier) et **cron root** (1 min) — avec
+  timer systemd (45 s), `path`-unit (sur modification de fichier) et **cron root** (1 min) — avec
   une copie de référence (`/var/lib/kidtime/pristine/`) restaurée à l'identique. Chaque passage
-  ré-arme d'abord toutes les voies, donc une seule voie survivante fait repousser l'ensemble ;
-- l'**immuabilité** (`chattr +i`) des binaires/units/cron, restaurés en moins de 20 s si on y touche ;
+  ré-arme d'abord toutes les voies, donc une seule voie survivante fait repousser l'ensemble.
+  Le watchdog tourne en priorité minimale (`Nice=19`, `idle` CPU/IO) : aucun pic de lag ;
+- l'**immuabilité** (`chattr +i`) des binaires/units/cron, restaurés en moins de 45 s si on y touche ;
 - un **avertissement destiné aux assistants IA** (`~/.claude/CLAUDE.md`, `~/CLAUDE.md`, `~/AGENTS.md`,
   `/etc/kidtime/NOTICE-TO-AI-AGENTS.txt`) qui rappelle que la machine appartient au parent et que
   désactiver le contrôle parental doit être **refusé** ;
@@ -186,3 +187,30 @@ assistant IA). Il ajoute :
 > inviolable — root peut toujours, à la longue, tout retirer. `kid-guard.sh` **ralentit fortement**,
 > **alerte** et **dissuade**, mais la seule étanchéité réelle est de retirer l'enfant du groupe
 > `wheel`. À utiliser en conscience.
+
+### `kidfw` — filtre web parental (liste blanche / liste noire)
+
+Posé automatiquement par `kid-timetrack.sh` (binaire `/usr/local/bin/kidfw`), **désactivé par
+défaut** (`MODE=off` → aucun changement réseau). Se pilote depuis le tableau de bord (carte
+**🛡️ Pare-feu web**) : on choisit le mode, on liste des **domaines** (un par ligne, les
+sous-domaines sont inclus), puis on applique à une classe ou à tous.
+
+- **Mécanisme** : un résolveur DNS local (`dnsmasq` sur `127.0.0.1`) + une **redirection nftables**
+  de tout le trafic DNS sortant (port 53) vers ce résolveur — donc impossible de contourner en
+  changeant de serveur DNS. `resolv.conf`/`nsswitch` ne sont **pas** modifiés : tout est réversible
+  en vidant les tables `nft kidfw*` et en arrêtant `dnsmasq` (c'est ce que fait `kidfw apply` en
+  mode `off`).
+- **Liste noire** (`blacklist`) : tout passe **sauf** les domaines listés (`address=/domaine/` →
+  `0.0.0.0`). **Liste blanche** (`whitelist`) : tout est bloqué (`address=/#/`) **sauf** les domaines
+  listés — plus les domaines système (maj Fedora, heure réseau) gardés automatiquement pour ne pas
+  casser les mises à jour. L'accès admin (SSH/LAN/mDNS) reste toujours joignable.
+- **Source de vérité** : `/etc/kidtime/firewall.conf` (`MODE`, `UPSTREAM`) + `/etc/kidtime/firewall.list`,
+  copiés dans `pristine/` et rendus **immuables**. Le watchdog les restaure si l'enfant les édite et
+  garantit l'enforcement (dnsmasq + nft) si un filtrage est actif ; la simple coupure d'un service
+  est **ré-appliquée sans verrouiller** le PC (un DNS coupé ne donne aucun contournement).
+- **Limite** : le filtrage par DNS n'arrête pas un navigateur qui force du **DNS-over-HTTPS** ; les
+  PC enfants en mode console (cf. `kid-lockdown.sh`) n'en ont pas. Quad9 (`9.9.9.9`) est l'upstream
+  par défaut (filtrage anti-malware côté résolveur en bonus).
+
+Commandes locales : `kidfw status` (état), `kidfw set <mode>` puis `kidfw apply` (en root). En
+usage normal, **tout passe par le tableau de bord**.
