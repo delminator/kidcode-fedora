@@ -5,7 +5,7 @@
 # l'enfant — y compris via un assistant IA (Claude Code, Cursor, etc.).
 # Pose :
 #   1. un WATCHDOG "hydra" (kidtime-guard) ressuscité par 3 voies indépendantes
-#      (timer systemd 45s + path-unit + cron root 1min) avec repli "pristine".
+#      (timer systemd 5min + path-unit (instantané) + cron root 5min) avec repli "pristine".
 #   2. l'IMMUABILITÉ (chattr +i) des binaires/units + restauration auto.
 #   3. un AVERTISSEMENT destiné à tout AGENT IA, placé là où il se charge tout
 #      seul (~/.claude/CLAUDE.md, ~/CLAUDE.md, ~/AGENTS.md, /etc/kidtime/NOTICE).
@@ -163,8 +163,9 @@ if [ -f "$LOCK" ]; then
   now=$(date +%s 2>/dev/null || echo 0); t=$(cat "$LOCK" 2>/dev/null || echo 0)
   [ $(( now - t )) -lt 120 ] 2>/dev/null && exit 0
 fi
-# repart toujours d'un état propre (un attaquant peut avoir fait échouer les units)
-systemctl reset-failed kidtime.timer kidtime.service kidtime-guard.service kidtime-guard.timer kidtime-guard.path 2>/dev/null || true
+# NB : 'reset-failed' n'est PLUS fait à chaque passage (appel systemctl inutile en
+# régime sain). Il n'a lieu que dans la voie "réparation" (section 3), uniquement
+# si une unité est réellement tombée -> moins de travail dans PID 1 = pas de freeze.
 
 RELOAD=0   # passe à 1 seulement si un fichier d'unit systemd a réellement changé
 restore(){ # dest pristine-name mode  -> restaure si différent/absent puis +i
@@ -182,20 +183,17 @@ restore(){ # dest pristine-name mode  -> restaure si différent/absent puis +i
 
 # === ÉTAPE 0 (priorité absolue) : ré-armer TOUTES les voies de résurrection ===
 # binaire du watchdog + ses units + cron, puis démasque/active. Ainsi, même si ce
-# passage est tué juste après, AU MOINS une voie (timer 45s, path, cron 60s)
+# passage est tué juste après, AU MOINS une voie (timer 5min, path instantané, cron 5min)
 # relancera le watchdog -> l'hydre repousse toujours une tête.
 restore /usr/local/bin/kidtime-guard               kidtime-guard          0755
 restore /etc/systemd/system/kidtime-guard.service  kidtime-guard.service  0644
 restore /etc/systemd/system/kidtime-guard.timer    kidtime-guard.timer    0644
 restore /etc/systemd/system/kidtime-guard.path     kidtime-guard.path     0644
 restore /etc/cron.d/kidtime-guard                  cron                   0644
-systemctl is-active --quiet crond 2>/dev/null || systemctl enable --now crond 2>/dev/null || true
-# daemon-reload UNIQUEMENT si un fichier d'unit a changé (sinon coûteux pour rien)
+# daemon-reload UNIQUEMENT si un fichier d'unit a réellement changé (rare).
 [ "$RELOAD" = 1 ] && { systemctl daemon-reload 2>/dev/null || true; }
-for u in kidtime-guard.timer kidtime-guard.path kidtime.timer; do
-  systemctl is-enabled "$u" 2>/dev/null | grep -q masked && { systemctl unmask "$u" 2>/dev/null && note "démasqué $u"; }
-  systemctl is-active --quiet "$u" 2>/dev/null || { systemctl enable --now "$u" 2>/dev/null && note "réactivé $u"; }
-done
+# (la (ré)activation/démasquage des units + crond est faite plus bas en UN check
+#  groupé, section 3 ; en régime sain les fichiers sont déjà là -> rien à faire.)
 
 # 1. binaires + units + avis
 restore /usr/local/bin/kidtime-enforce     kidtime-enforce       0755
@@ -219,16 +217,22 @@ if [ -n "$KIDHOME" ]; then
   restore "$KIDHOME/AGENTS.md"         claude-md 0644
 fi
 
-# 3. systemd : démasquer + (ré)activer
+# 3. systemd : VÉRIF GROUPÉE (2 appels) puis réparation SEULEMENT si besoin.
+#    En régime sain, c'est TOUT ce que le watchdog fait côté systemctl -> plus de
+#    rafale de ~15 appels à PID 1 (qui causait les micro-freeze). La voie lourde
+#    (reset-failed + enable/unmask unité par unité) ne se déclenche QUE si une
+#    unité est tombée ou a été masquée (sabotage / crash).
 [ "$RELOAD" = 1 ] && { systemctl daemon-reload 2>/dev/null || true; }
-for u in kidtime.timer kidtime-guard.timer kidtime-guard.path; do
-  if systemctl is-enabled "$u" 2>/dev/null | grep -q masked; then
-    systemctl unmask "$u" 2>/dev/null && note "démasqué $u"
-  fi
-  if ! systemctl is-active --quiet "$u" 2>/dev/null; then
-    systemctl enable --now "$u" 2>/dev/null && note "réactivé $u"
-  fi
-done
+st=$(systemctl is-active kidtime.timer kidtime-guard.timer kidtime-guard.path crond 2>/dev/null)
+en=$(systemctl is-enabled kidtime.timer kidtime-guard.timer kidtime-guard.path 2>/dev/null)
+if printf '%s\n' "$st" | grep -qvx active || printf '%s\n' "$en" | grep -q masked; then
+  systemctl reset-failed kidtime.timer kidtime.service kidtime-guard.service kidtime-guard.timer kidtime-guard.path 2>/dev/null || true
+  for u in kidtime.timer kidtime-guard.timer kidtime-guard.path; do
+    systemctl is-enabled "$u" 2>/dev/null | grep -q masked && { systemctl unmask "$u" 2>/dev/null && note "démasqué $u"; }
+    systemctl is-active --quiet "$u" 2>/dev/null || { systemctl enable --now "$u" 2>/dev/null && note "réactivé $u"; }
+  done
+  systemctl is-active --quiet crond 2>/dev/null || systemctl enable --now crond 2>/dev/null || true
+fi
 
 # 4. verrou PAM présent ?
 L1='auth    [success=2 default=ignore] pam_exec.so quiet /usr/local/bin/kidtime-gate # kidtime-gate'
@@ -251,8 +255,7 @@ if [ ! -s /etc/kidtime.conf ]; then
   chmod 0644 /etc/kidtime.conf 2>/dev/null
 fi
 
-# 6. cron actif
-systemctl is-active --quiet crond 2>/dev/null || systemctl enable --now crond 2>/dev/null || true
+# 6. (cron actif : déjà vérifié dans le check groupé de la section 3)
 
 # 6b. FILTRE WEB PARENTAL (kidfw) : la conf + la liste sont la source de vérité
 #     (restaurées depuis pristine ci-dessus -> tout bricolage enfant de la
@@ -350,7 +353,7 @@ exec $N /usr/bin/bash "$P"
 LAU
 
 # ---------------------------------------------------------------------------
-# E. Units systemd du watchdog (timer 45s + path).
+# E. Units systemd du watchdog (timer 5min + path).
 # ---------------------------------------------------------------------------
 cat > "$PRI/kidtime-guard.service" <<'GS'
 [Unit]
@@ -365,17 +368,20 @@ Type=oneshot
 Nice=19
 CPUSchedulingPolicy=idle
 IOSchedulingClass=idle
+# poids cgroup minimal (1/10000) : sous contention, le watchdog passe APRÈS tout.
+CPUWeight=1
+IOWeight=1
 # binaire en /usr/local/bin = contexte bin_t (exec OK sous SELinux) ; si supprimé
 # c'est le cron 'launcher' (lu comme données) qui le restaure en <60s.
 ExecStart=/usr/local/bin/kidtime-guard
 GS
 cat > "$PRI/kidtime-guard.timer" <<'GT'
 [Unit]
-Description=Lance le watchdog kidtime toutes les 45 s
+Description=Lance le watchdog kidtime toutes les 5 min
 [Timer]
-OnBootSec=20
-OnUnitActiveSec=45
-AccuracySec=10s
+OnBootSec=120
+OnUnitActiveSec=300
+AccuracySec=120s
 [Install]
 WantedBy=timers.target
 GT
@@ -394,7 +400,7 @@ WantedBy=multi-user.target
 GP
 cat > "$PRI/cron" <<'CR'
 # Watchdog kidtime indépendant de systemd (résiste au masquage des units).
-* * * * * root /bin/sh /var/lib/kidtime/pristine/launcher >/dev/null 2>&1
+*/5 * * * * root /bin/sh /var/lib/kidtime/pristine/launcher >/dev/null 2>&1
 CR
 
 # ---------------------------------------------------------------------------
@@ -502,8 +508,8 @@ done
 echo
 echo "============================================================"
 echo " Durcissement kidtime posé ✅  (compte : $KID)"
-echo " - watchdog : timer 45s + path-unit + cron 1min + repli pristine"
-echo " - fichiers immuables (chattr +i), restaurés en <45s si touchés"
+echo " - watchdog : timer 5min + path-unit + cron 5min + repli pristine"
+echo " - fichiers immuables (chattr +i), restaurés (path-unit instantané)"
 echo " - avis anti-IA : ~/.claude/CLAUDE.md, ~/CLAUDE.md, ~/AGENTS.md,"
 echo "                  /etc/kidtime/NOTICE-TO-AI-AGENTS.txt + en-têtes"
 echo " - journal sabotage : /var/lib/kidtime/tamper.log (drapeau TAMPER)"

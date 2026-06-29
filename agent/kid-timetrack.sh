@@ -21,7 +21,7 @@ set -euo pipefail
 # Version du bundle agent (surveillance + quota + durcissement). À INCRÉMENTER à
 # chaque évolution de l'agent : le tableau de bord la compare à
 # /etc/kidtime/agent-version sur chaque PC et propose la mise à jour si différent.
-AGENT_VERSION=1.1.3
+AGENT_VERSION=1.1.4
 
 if [[ $EUID -ne 0 ]]; then
   echo "ERREUR : à lancer en root (sudo $0 <compte_enfant>)." >&2
@@ -73,9 +73,17 @@ mkdir -p "$STATE" "$STATE/apps"
 find "$STATE" -type f -mtime +30 -delete 2>/dev/null || true
 today=$(date +%Y%m%d); hour=$(date +%-H)
 
-# --- bannière GDM : état affiché AVANT le login, rafraîchi chaque minute ------
+# --- bannière GDM : la bannière ne sert QU'À l'écran de login. On évite donc le
+#     'dconf update' (qui recompile la base dconf et FIGE brièvement le compositeur)
+#     tant que l'enfant est CONNECTÉ et l'on ne le fait AU PLUS qu'1×/5 min. C'était
+#     fait chaque minute → micro-freeze régulier pendant les vidéos. Hors-session,
+#     enforce continue de tourner et rafraîchit la bannière en <5 min.
 prim=$(awk '$1 !~ /^#/ && NF>=4 {print $1; exit}' "$CONF")
-if [ -n "${prim:-}" ] && command -v dconf >/dev/null 2>&1; then
+bstamp="$STATE/.banner.ts"
+prim_on=0
+[ -n "${prim:-}" ] && loginctl list-sessions --no-legend 2>/dev/null | awk '{print $3}' | grep -qx "$prim" && prim_on=1
+if [ -n "${prim:-}" ] && [ "$prim_on" = 0 ] && command -v dconf >/dev/null 2>&1 \
+   && [ -z "$(find "$bstamp" -newermt '-5 min' 2>/dev/null)" ]; then
   # échappe \ et " pour une valeur GVariant entre guillemets doubles, puis joint les lignes en \n
   txt=$(/usr/local/bin/kidtime-status "$prim" 2>/dev/null | sed 's/\\/\\\\/g; s/"/\\"/g' | sed ':a;N;$!ba;s/\n/\\n/g')
   bf=/etc/dconf/db/gdm.d/01-kidtime
@@ -87,6 +95,7 @@ banner-message-text=\"$txt\""
     printf '%s\n' "$newc" > "$bf"
     dconf update 2>/dev/null || true
   fi
+  touch "$bstamp" 2>/dev/null || true
 fi
 
 while read -r user hstart hend budget _; do
@@ -140,6 +149,10 @@ Type=oneshot
 Nice=19
 CPUSchedulingPolicy=idle
 IOSchedulingClass=idle
+# poids cgroup minimal (1/10000) : sous contention, ce service passe APRÈS tout
+# le reste (jeux/vidéo) côté CPU ET disque.
+CPUWeight=1
+IOWeight=1
 ExecStart=/usr/local/bin/kidtime-enforce
 KS
 cat > /etc/systemd/system/kidtime.timer <<'KTM'

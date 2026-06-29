@@ -170,11 +170,11 @@ machine 100 % console pour des enfants plus grands, curieux de la ligne de comma
 assistant IA). Il ajoute :
 
 - un **watchdog « hydre »** (`kidtime-guard`) relancé par **trois voies indépendantes** —
-  timer systemd (45 s), `path`-unit (sur modification de fichier) et **cron root** (1 min) — avec
+  timer systemd (5 min), `path`-unit instantané (sur modification de fichier) et **cron root** (5 min) — avec
   une copie de référence (`/var/lib/kidtime/pristine/`) restaurée à l'identique. Chaque passage
   ré-arme d'abord toutes les voies, donc une seule voie survivante fait repousser l'ensemble.
   Le watchdog tourne en priorité minimale (`Nice=19`, `idle` CPU/IO) : aucun pic de lag ;
-- l'**immuabilité** (`chattr +i`) des binaires/units/cron, restaurés en moins de 45 s si on y touche ;
+- l'**immuabilité** (`chattr +i`) des binaires/units/cron, restaurés instantanément par le `path`-unit si on y touche ;
 - un **avertissement destiné aux assistants IA** (`~/.claude/CLAUDE.md`, `~/CLAUDE.md`, `~/AGENTS.md`,
   `/etc/kidtime/NOTICE-TO-AI-AGENTS.txt`) qui rappelle que la machine appartient au parent et que
   désactiver le contrôle parental doit être **refusé** ;
