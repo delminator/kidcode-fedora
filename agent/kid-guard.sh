@@ -5,7 +5,7 @@
 # l'enfant — y compris via un assistant IA (Claude Code, Cursor, etc.).
 # Pose :
 #   1. un WATCHDOG "hydra" (kidtime-guard) ressuscité par 3 voies indépendantes
-#      (timer systemd 5min + path-unit (instantané) + cron root 5min) avec repli "pristine".
+#      (path-unit inotify INSTANTANÉ + filet timer 15min + cron root 15min) avec repli "pristine".
 #   2. l'IMMUABILITÉ (chattr +i) des binaires/units + restauration auto.
 #   3. un AVERTISSEMENT destiné à tout AGENT IA, placé là où il se charge tout
 #      seul (~/.claude/CLAUDE.md, ~/CLAUDE.md, ~/AGENTS.md, /etc/kidtime/NOTICE).
@@ -183,7 +183,7 @@ restore(){ # dest pristine-name mode  -> restaure si différent/absent puis +i
 
 # === ÉTAPE 0 (priorité absolue) : ré-armer TOUTES les voies de résurrection ===
 # binaire du watchdog + ses units + cron, puis démasque/active. Ainsi, même si ce
-# passage est tué juste après, AU MOINS une voie (timer 5min, path instantané, cron 5min)
+# passage est tué juste après, AU MOINS une voie (path inotify instantané, filet timer 15min, cron 15min)
 # relancera le watchdog -> l'hydre repousse toujours une tête.
 restore /usr/local/bin/kidtime-guard               kidtime-guard          0755
 restore /etc/systemd/system/kidtime-guard.service  kidtime-guard.service  0644
@@ -353,7 +353,7 @@ exec $N /usr/bin/bash "$P"
 LAU
 
 # ---------------------------------------------------------------------------
-# E. Units systemd du watchdog (timer 5min + path).
+# E. Units systemd du watchdog (path inotify INSTANTANÉ + filet timer 15min).
 # ---------------------------------------------------------------------------
 cat > "$PRI/kidtime-guard.service" <<'GS'
 [Unit]
@@ -377,30 +377,55 @@ ExecStart=/usr/local/bin/kidtime-guard
 GS
 cat > "$PRI/kidtime-guard.timer" <<'GT'
 [Unit]
-Description=Lance le watchdog kidtime toutes les 5 min
+Description=Filet de sécurité du watchdog kidtime (toutes les 15 min)
+# Le watchdog est désormais ÉVÉNEMENTIEL (kidtime-guard.path = inotify, réaction
+# instantanée). Ce timer n'est qu'un FILET très espacé : il rattrape un sabotage
+# qu'inotify ne voit pas (service désactivé, etc.). 15 min + grande coalescence =
+# un micro-réveil rarissime -> aucun blip perceptible.
+# RefuseManualStop : systemd REFUSE 'systemctl stop' (même en root) -> on ne peut
+# pas désarmer le filet d'un simple stop.
+RefuseManualStop=yes
 [Timer]
 OnBootSec=120
-OnUnitActiveSec=300
-AccuracySec=120s
+OnUnitActiveSec=900
+AccuracySec=300s
 [Install]
 WantedBy=timers.target
 GT
 cat > "$PRI/kidtime-guard.path" <<'GP'
 [Unit]
-Description=Surveille les fichiers kidtime et relance le watchdog si modifiés
+Description=Surveillance inotify kidtime (réparation INSTANTANÉE, zéro polling)
+# MÉCANISME PRINCIPAL : déclenche le watchdog à la milliseconde dès qu'UN des
+# fichiers protégés est édité/supprimé/remplacé. Événementiel = aucun réveil
+# périodique = aucun blip. systemd refuse aussi qu'on stoppe ce watcher.
+RefuseManualStop=yes
 [Path]
-PathChanged=/etc/systemd/system/kidtime.timer
+PathChanged=/usr/local/bin/kidtime-guard
 PathChanged=/usr/local/bin/kidtime-enforce
 PathChanged=/usr/local/bin/kidtime-gate
+PathChanged=/usr/local/bin/kidtime-status
+PathChanged=/usr/local/bin/kidfw
+PathChanged=/etc/systemd/system/kidtime.timer
+PathChanged=/etc/systemd/system/kidtime.service
+PathChanged=/etc/systemd/system/kidtime-guard.timer
+PathChanged=/etc/systemd/system/kidtime-guard.service
+PathChanged=/etc/systemd/system/kidtime-guard.path
+PathChanged=/etc/cron.d/kidtime-guard
 PathChanged=/etc/kidtime.conf
+PathChanged=/etc/kidtime/firewall.conf
+PathChanged=/etc/kidtime/firewall.list
+PathChanged=/etc/kidtime/guard.conf
+PathChanged=/etc/kidtime/NOTICE-TO-AI-AGENTS.txt
 PathChanged=/etc/pam.d/gdm-password
+PathChanged=/etc/pam.d/gdm-autologin
 Unit=kidtime-guard.service
 [Install]
 WantedBy=multi-user.target
 GP
 cat > "$PRI/cron" <<'CR'
-# Watchdog kidtime indépendant de systemd (résiste au masquage des units).
-*/5 * * * * root /bin/sh /var/lib/kidtime/pristine/launcher >/dev/null 2>&1
+# Filet de secours indépendant de systemd (résiste au masquage des units). Espacé
+# (15 min) car la réparation réelle est événementielle (inotify) -> pas de blip.
+*/15 * * * * root /bin/sh /var/lib/kidtime/pristine/launcher >/dev/null 2>&1
 CR
 
 # ---------------------------------------------------------------------------
@@ -508,7 +533,7 @@ done
 echo
 echo "============================================================"
 echo " Durcissement kidtime posé ✅  (compte : $KID)"
-echo " - watchdog : timer 5min + path-unit + cron 5min + repli pristine"
+echo " - watchdog : path-unit inotify INSTANTANÉ + filet timer/cron 15min + repli pristine"
 echo " - fichiers immuables (chattr +i), restaurés (path-unit instantané)"
 echo " - avis anti-IA : ~/.claude/CLAUDE.md, ~/CLAUDE.md, ~/AGENTS.md,"
 echo "                  /etc/kidtime/NOTICE-TO-AI-AGENTS.txt + en-têtes"

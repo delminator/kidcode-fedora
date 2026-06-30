@@ -21,7 +21,7 @@ set -euo pipefail
 # Version du bundle agent (surveillance + quota + durcissement). À INCRÉMENTER à
 # chaque évolution de l'agent : le tableau de bord la compare à
 # /etc/kidtime/agent-version sur chaque PC et propose la mise à jour si différent.
-AGENT_VERSION=1.1.4
+AGENT_VERSION=1.1.5
 
 if [[ $EUID -ne 0 ]]; then
   echo "ERREUR : à lancer en root (sudo $0 <compte_enfant>)." >&2
@@ -158,6 +158,9 @@ KS
 cat > /etc/systemd/system/kidtime.timer <<'KTM'
 [Unit]
 Description=Lance kidtime chaque minute
+# systemd refuse 'systemctl stop' (même en root) : on ne désarme pas le quota d'un
+# simple stop. Le watchdog inotify répare en plus toute modif du fichier.
+RefuseManualStop=yes
 [Timer]
 OnBootSec=60
 OnUnitActiveSec=60

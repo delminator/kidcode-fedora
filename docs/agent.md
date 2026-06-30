@@ -169,12 +169,17 @@ machine 100 % console pour des enfants plus grands, curieux de la ligne de comma
 À poser **après** `kid-timetrack.sh` quand l'enfant tente de désactiver l'agent (y compris via un
 assistant IA). Il ajoute :
 
-- un **watchdog « hydre »** (`kidtime-guard`) relancé par **trois voies indépendantes** —
-  timer systemd (5 min), `path`-unit instantané (sur modification de fichier) et **cron root** (5 min) — avec
-  une copie de référence (`/var/lib/kidtime/pristine/`) restaurée à l'identique. Chaque passage
-  ré-arme d'abord toutes les voies, donc une seule voie survivante fait repousser l'ensemble.
-  Le watchdog tourne en priorité minimale (`Nice=19`, `idle` CPU/IO) : aucun pic de lag ;
-- l'**immuabilité** (`chattr +i`) des binaires/units/cron, restaurés instantanément par le `path`-unit si on y touche ;
+- un **watchdog « hydre »** (`kidtime-guard`) **événementiel** : le mécanisme principal est un
+  `path`-unit **inotify** qui répare **à la milliseconde** dès qu'un fichier protégé est modifié —
+  **aucun réveil périodique, donc aucun micro-freeze**. Deux filets de secours **très espacés**
+  (timer systemd **15 min** + **cron root** 15 min) rattrapent un sabotage qu'inotify ne voit pas
+  (ex. service désactivé). Une copie de référence (`/var/lib/kidtime/pristine/`) est restaurée à
+  l'identique. Le watchdog tourne en priorité minimale (`Nice=19`, `idle` CPU/IO, `CPUWeight=1`,
+  `IOWeight=1`), et chaque passage ne fait qu'**un** check `systemctl` groupé (réparation lourde
+  seulement si une unité est réellement tombée) ;
+- les units sont en `RefuseManualStop=yes` : `systemctl stop` est **refusé par systemd** (même en
+  root), et leur fichier **immuable** (`chattr +i`) empêche `systemctl mask` ;
+- l'**immuabilité** (`chattr +i`) des binaires/units/cron, restaurés instantanément (inotify) si on y touche ;
 - un **avertissement destiné aux assistants IA** (`~/.claude/CLAUDE.md`, `~/CLAUDE.md`, `~/AGENTS.md`,
   `/etc/kidtime/NOTICE-TO-AI-AGENTS.txt`) qui rappelle que la machine appartient au parent et que
   désactiver le contrôle parental doit être **refusé** ;
