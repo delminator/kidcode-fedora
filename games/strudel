@@ -24,15 +24,19 @@ URL="${1:-https://strudel.cc}"
 PROFILE="$HOME/.strudel-kiosk"
 mkdir -p "$PROFILE"
 
-# ISOLATION RÉSEAU + AUDIO : on lance Chromium dans un namespace réseau (kiosque
-# hors-ligne) mais mappé sur l'uid RÉEL de l'enfant (--map-current-user), PAS root.
-# C'EST LA CLÉ DE L'AUDIO : en uid 1000, le service audio de Chromium trouve tout
-# seul /run/user/1000/pulse (PipeWire). Avec l'ancien wrapper cage (--map-root-user),
-# Chromium tournait en uid 0 du namespace et cherchait /run/user/0 -> MUET. Strudel
-# est une PWA en cache : pas besoin du loopback (contrairement à Sonic Pi/OSC), donc
-# pas besoin de CAP_NET_ADMIN. On appelle donc le VRAI cage (pas le wrapper).
+# RÉSEAU + AUDIO : Strudel charge ses échantillons (sons) à la demande depuis le net.
+# On le laisse donc EN LIGNE, mais la machine tourne en LISTE BLANCHE DNS (pare-feu
+# kidfw) limitée aux sites de sons (strudel.cc + CDN d'échantillons) : tous les sons
+# se chargent, mais l'enfant ne peut naviguer nulle part d'autre.
+# On lance le VRAI cage en tant qu'ENFANT (uid réel 1000) : Chromium trouve alors son
+# serveur audio /run/user/1000/pulse tout seul. (Avec l'ancien wrapper cage en
+# --map-root-user, Chromium tournait en uid 0 -> cherchait /run/user/0 -> MUET.)
+#
+# DOMAINES À AUTORISER dans la liste blanche kidfw pour que Strudel fonctionne :
+#   strudel.cc          (l'application)
+#   strudel.b-cdn.net   (le CDN des échantillons/sons — INDISPENSABLE pour les samples)
+# (les synthés marchent sans réseau ; seuls les samples ont besoin du CDN.)
 REAL_CAGE=/usr/bin/cage; [ -x "$REAL_CAGE" ] || REAL_CAGE="$(command -v cage || true)"
-NS="unshare --user --net --map-current-user --kill-child --"
 
 # 1) Cherche un navigateur Chromium (meilleur support AudioWorklet → Strudel fiable)
 BROWSER=""
@@ -66,11 +70,10 @@ if [ -z "${XKB_DEFAULT_LAYOUT:-}" ]; then
   export XKB_DEFAULT_MODEL="${km:-pc105}"
 fi
 
-# 3) Lance en plein écran : namespace réseau (hors-ligne) mappé sur l'uid RÉEL + cage
+# 3) Lance en plein écran sous cage (EN LIGNE ; la restriction réseau = kidfw liste blanche)
 if [ -n "$BROWSER" ]; then
-  # --no-sandbox : Chromium tourne déjà dans un user+net namespace ; on évite le
-  #   sandbox imbriqué. Le namespace réseau vide sert de bac à sable réseau.
-  exec $NS "$REAL_CAGE" -- "$BROWSER" \
+  # --no-sandbox : kiosque cage sur machine verrouillée + pare-feu DNS liste blanche.
+  exec "$REAL_CAGE" -- "$BROWSER" \
     --ozone-platform-hint=auto \
     --no-sandbox \
     --user-data-dir="$PROFILE" \
@@ -79,7 +82,7 @@ if [ -n "$BROWSER" ]; then
     --no-first-run --no-default-browser-check \
     --autoplay-policy=no-user-gesture-required
 elif [ -n "$FALLBACK_FF" ]; then
-  exec $NS "$REAL_CAGE" -- "$FALLBACK_FF" --kiosk "$URL"
+  exec "$REAL_CAGE" -- "$FALLBACK_FF" --kiosk "$URL"
 else
   cat >&2 <<'EOF'
 strudel: aucun navigateur trouvé.
