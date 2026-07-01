@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# strudel — ouvre le studio musical Strudel (live coding) en PLEIN ÉCRAN, sans bureau.
+#
+# Pour l'enfant : tape simplement   strudel
+#   → s'ouvre en kiosque via cage (comme `cage -- sonic-pi`).
+#   → arrêter le son : Ctrl + .   ·   fermer le studio : Ctrl + W (retour console).
+#
+# ⚠️ HORS-LIGNE : sur les machines enfants, le wrapper 'cage' coupe internet
+# (loopback seul). Strudel est une PWA : une fois son cache rempli, il se charge
+# SANS réseau. Donc, AVANT la 1ʳᵉ utilisation, l'admin lance UNE FOIS, en ligne :
+#     strudel-prime      (remplit le cache appli + samples dans CE profil)
+# Ensuite 'strudel' fonctionne 100 % hors-ligne depuis le cache.
+# (Sur une machine sans le wrapper — ex. l'ordi de papa — strudel.cc marche direct.)
+#
+# ⚠️ SÉCURITÉ : ceci lance un VRAI navigateur (Chromium/Firefox) en plein écran.
+# Le mode --app/--kiosk masque la barre d'adresse et les onglets, mais ce n'est PAS
+# un bac à sable étanche. Sur les machines durcies par kid-lockdown.sh, les navigateurs
+# sont blacklistés exprès : l'admin doit donc volontairement les réautoriser (voir tout en bas).
+#
+# Usage :  strudel [URL]     (par défaut https://strudel.cc)
+set -euo pipefail
+
+URL="${1:-https://strudel.cc}"
+PROFILE="$HOME/.strudel-kiosk"
+mkdir -p "$PROFILE"
+
+# 1) Cherche un navigateur Chromium (meilleur support AudioWorklet → Strudel fiable)
+BROWSER=""
+for b in chromium chromium-browser chromium-freeworld chromium-freeworld-ozone \
+         google-chrome google-chrome-stable chrome brave-browser; do
+  if command -v "$b" >/dev/null 2>&1; then BROWSER="$b"; break; fi
+done
+# repli : Firefox
+FALLBACK_FF=""
+if [ -z "$BROWSER" ] && command -v firefox >/dev/null 2>&1; then FALLBACK_FF="firefox"; fi
+
+# 2) cage présent ?
+if ! command -v cage >/dev/null 2>&1; then
+  echo "strudel: 'cage' introuvable. Demande à l'admin de l'installer (pkg install cage)." >&2
+  exit 1
+fi
+
+# Clavier : cage/wlroots ne récupère PAS la disposition du système -> il retombe
+# sur QWERTY US. On la lui passe via les variables XKB (lues depuis localectl,
+# repli /etc/vconsole.conf, défaut 'fr' AZERTY).
+if [ -z "${XKB_DEFAULT_LAYOUT:-}" ]; then
+  kl=$(localectl status 2>/dev/null | sed -n 's/.*X11 Layout: *//p' || true)
+  kv=$(localectl status 2>/dev/null | sed -n 's/.*X11 Variant: *//p' || true)
+  km=$(localectl status 2>/dev/null | sed -n 's/.*X11 Model: *//p' || true)
+  if [ -z "$kl" ]; then                       # repli : dérive de KEYMAP (ex. fr-oss)
+    vc=$(. /etc/vconsole.conf 2>/dev/null || true; printf '%s' "${KEYMAP:-fr}")
+    kl=${vc%%-*}; case "$vc" in *-*) kv=${vc#*-} ;; esac
+  fi
+  export XKB_DEFAULT_LAYOUT="${kl:-fr}"
+  if [ -n "${kv:-}" ]; then export XKB_DEFAULT_VARIANT="$kv"; fi
+  export XKB_DEFAULT_MODEL="${km:-pc105}"
+fi
+
+# 3) Lance en plein écran sous cage
+if [ -n "$BROWSER" ]; then
+  # --no-sandbox : requis car sous le wrapper 'cage' verrouillé, Chromium tourne
+  #   en root-du-namespace (il refuserait de démarrer sinon). Sans danger ici :
+  #   le namespace réseau est vide, c'est un kiosque hors-ligne pour enfant.
+  exec cage -- "$BROWSER" \
+    --ozone-platform-hint=auto \
+    --no-sandbox \
+    --user-data-dir="$PROFILE" \
+    --app="$URL" \
+    --start-fullscreen \
+    --no-first-run --no-default-browser-check \
+    --autoplay-policy=no-user-gesture-required
+elif [ -n "$FALLBACK_FF" ]; then
+  exec cage -- "$FALLBACK_FF" --kiosk "$URL"
+else
+  cat >&2 <<'EOF'
+strudel: aucun navigateur trouvé.
+Strudel a besoin d'un moteur web (Chromium de préférence). Sur cette machine, les
+navigateurs sont bloqués par le lockdown : c'est à l'admin (papa) de réautoriser
+Chromium volontairement. Voir les instructions en commentaire dans ce script.
+EOF
+  exit 1
+fi
+
+# =====================================================================================
+# POUR PAPA — installation, UNE SEULE FOIS, en root sur la machine de l'enfant
+# =====================================================================================
+# Le lockdown (kid-lockdown.sh) bloque les navigateurs à 2 niveaux : allowlist
+# /etc/kid-install-allowlist + blacklist dnf EXCLUDE='...chromium*...'. Pour réautoriser :
+#
+#   1. Installer Chromium en root (contourne l'allowlist enfant) :
+#        sudo dnf install -y chromium
+#      (ou la variante 'chromium-freeworld' selon les dépôts ; Wayland natif OK sous cage.)
+#
+#   2. Si tu veux que l'enfant puisse le réinstaller/mettre à jour via `pkg` :
+#        echo chromium | sudo tee -a /etc/kid-install-allowlist
+#      …et retirer 'chromium*' de la variable EXCLUDE dans kid-lockdown.sh
+#      (sinon la liste noire dnf le re-bloquera à la prochaine exécution du lockdown).
+#      ⚠️ Sécurité : ne le fais QUE si tu acceptes de rouvrir l'accès navigateur.
+#
+#   3. Mettre ce lanceur dans le PATH de l'enfant :
+#        sudo install -m755 games/strudel /usr/local/bin/strudel
+#
+#   4. cage + groupes : déjà gérés par le lockdown (cage autorisé ; enfant dans
+#      video,input,render). Rien à faire si le lockdown a tourné.
+#
+#   5. Tester (en tant que l'enfant) :   strudel
+#
+# Option « plus propre » (sans navigateur du tout) : préférer TidalCycles ou FoxDot,
+# qui ont la même verbosité réduite et tournent en natif sur SuperCollider, sans moteur web.
+# =====================================================================================

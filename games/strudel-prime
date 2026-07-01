@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# strudel-prime — À LANCER UNE SEULE FOIS, EN LIGNE (par l'admin/papa).
+#
+# Strudel est une PWA : l'appli + les samples se mettent en cache QUAND on les
+# joue. Ce script ouvre Strudel EN LIGNE dans le profil kiosque pour remplir ce
+# cache. Ensuite, l'enfant lance `strudel` (cage verrouillé, SANS réseau) sur le
+# MÊME profil → tout est servi depuis le cache, 100 % hors-ligne.
+#
+# On passe EXPRÈS par le VRAI cage (/usr/bin/cage), qui a le réseau, et non par
+# le wrapper sans-réseau /usr/local/bin/cage.
+set -euo pipefail
+
+URL="${1:-https://strudel.cc}"
+PROFILE="${STRUDEL_PROFILE:-$HOME/.strudel-kiosk}"
+mkdir -p "$PROFILE"
+
+# Même détection de navigateur que le lanceur 'strudel'
+BROWSER=""
+for b in chromium chromium-browser chromium-freeworld chromium-freeworld-ozone \
+         google-chrome google-chrome-stable chrome brave-browser; do
+  if command -v "$b" >/dev/null 2>&1; then BROWSER="$b"; break; fi
+done
+FF=""
+if [ -z "$BROWSER" ] && command -v firefox >/dev/null 2>&1; then FF="firefox"; fi
+if [ -z "$BROWSER" ] && [ -z "$FF" ]; then
+  echo "strudel-prime: aucun navigateur. Installe chromium (admin) — cf. strudel-setup." >&2
+  exit 1
+fi
+
+# Le VRAI cage = avec réseau (on contourne volontairement le wrapper sans-réseau)
+REAL_CAGE=/usr/bin/cage
+command -v "$REAL_CAGE" >/dev/null 2>&1 || REAL_CAGE="$(command -v cage || true)"
+[ -n "$REAL_CAGE" ] || { echo "strudel-prime: cage introuvable." >&2; exit 1; }
+
+cat <<'EOF'
+========== AMORÇAGE DU CACHE STRUDEL (UNE FOIS, EN LIGNE) ==========
+Strudel va s'ouvrir EN LIGNE. Pour mettre TOUS les sons du tuto en cache :
+
+  1) Colle ce code dans Strudel, fais Ctrl+Entrée, laisse tourner ~20 s :
+
+        stack(
+          sound("bd sd hh oh cp rim lt mt ht rd cr"),
+          note("c e g b").sound("piano"),
+          note("c e g").sound("sawtooth")
+        ).slow(10)
+
+  2) Tu dois ENTENDRE tous les sons défiler (c'est ce qui les télécharge+cache).
+  3) Ctrl+.  pour arrêter, puis ferme la fenêtre (Ctrl+W ou Alt+F4).
+
+Vérif (optionnel) : DevTools → Application → Cache Storage doit lister des entrées.
+Ensuite, l'enfant joue 100 % hors-ligne avec :   strudel
+===================================================================
+EOF
+read -rp "Entrée pour ouvrir Strudel EN LIGNE (Ctrl+C pour annuler)… " _ || exit 0
+
+# Clavier : passe la disposition système à cage (sinon QWERTY US par défaut).
+if [ -z "${XKB_DEFAULT_LAYOUT:-}" ]; then
+  kl=$(localectl status 2>/dev/null | sed -n 's/.*X11 Layout: *//p' || true)
+  kv=$(localectl status 2>/dev/null | sed -n 's/.*X11 Variant: *//p' || true)
+  km=$(localectl status 2>/dev/null | sed -n 's/.*X11 Model: *//p' || true)
+  if [ -z "$kl" ]; then
+    vc=$(. /etc/vconsole.conf 2>/dev/null || true; printf '%s' "${KEYMAP:-fr}")
+    kl=${vc%%-*}; case "$vc" in *-*) kv=${vc#*-} ;; esac
+  fi
+  export XKB_DEFAULT_LAYOUT="${kl:-fr}"
+  if [ -n "${kv:-}" ]; then export XKB_DEFAULT_VARIANT="$kv"; fi
+  export XKB_DEFAULT_MODEL="${km:-pc105}"
+fi
+
+if [ -n "$BROWSER" ]; then
+  exec "$REAL_CAGE" -- "$BROWSER" \
+    --ozone-platform-hint=auto \
+    --user-data-dir="$PROFILE" \
+    --app="$URL" --start-fullscreen \
+    --no-first-run --no-default-browser-check
+else
+  exec "$REAL_CAGE" -- "$FF" --kiosk "$URL"
+fi
