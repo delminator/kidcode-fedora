@@ -456,6 +456,7 @@ def _resource_dir():
 
 AGENT_SCRIPT = _resource_dir() / "agent" / "kid-timetrack.sh"
 GUARD_SCRIPT = _resource_dir() / "agent" / "kid-guard.sh"
+GAMES_DIR = _resource_dir() / "games"
 
 
 def _agent_version():
@@ -555,6 +556,8 @@ def bulk_action(action, params=None, names=None):
         def fn(m): return {"name": m["name"], **write_timelimit(m, hs, he, bd)}
     elif action == "deploy":
         def fn(m): return {"name": m["name"], **deploy_agent(m)}
+    elif action == "tools":
+        def fn(m): return {"name": m["name"], **push_tools(m)}
     else:
         return [{"ok": False, "msg": "action inconnue"}]
     return _parallel(machines, fn)
@@ -767,6 +770,37 @@ def push_to(m):
         if rc != 0:
             return {"ok": False, "msg": err.strip() or "install a échoué"}
         return {"ok": True, "msg": f"{out.strip()} paquets en place"}
+    except Exception as e:  # noqa
+        return {"ok": False, "msg": _ssh_err(e)}
+
+
+def push_tools(m):
+    """Rafraîchit les outils du dossier games/ (Strudel, Zork…) DÉJÀ installés sur
+    le PC (update-if-present) : n'installe rien qui n'y est pas déjà. Pour chaque
+    script games/<f>, met à jour /usr/local/bin/<f> ou /usr/local/bin/<f sans .sh>
+    s'il existe."""
+    if not GAMES_DIR.exists():
+        return {"ok": False, "msg": "dossier games/ introuvable"}
+    files = [p for p in sorted(GAMES_DIR.iterdir()) if p.is_file()]
+    if not files:
+        return {"ok": True, "msg": "aucun outil dans games/"}
+    try:
+        updated = []
+        for p in files:
+            b = p.name
+            cands = [b] + ([b[:-3]] if b.endswith(".sh") else [])
+            targets = " ".join("/usr/local/bin/" + c for c in cands)
+            ssh_put_text(m, p.read_text(), "/tmp/.kidtool.new")
+            cmd = ('u=""; for t in ' + targets + '; do '
+                   '[ -e "$t" ] && { install -m0755 -o root -g root /tmp/.kidtool.new "$t"; '
+                   'restorecon -F "$t" 2>/dev/null || true; u="$t"; }; done; '
+                   'rm -f /tmp/.kidtool.new; [ -n "$u" ] && echo "$u" || true')
+            rc, out, err = ssh_run(m, cmd, timeout=30)
+            if out.strip():
+                updated.append(out.strip().split("/")[-1])
+        if updated:
+            return {"ok": True, "msg": "maj : " + ", ".join(sorted(set(updated)))}
+        return {"ok": True, "msg": "aucun outil games/ présent ici (rien à faire)"}
     except Exception as e:  # noqa
         return {"ok": False, "msg": _ssh_err(e)}
 
@@ -1062,6 +1096,7 @@ td:first-child{white-space:nowrap;color:#ffd479;font-family:ui-monospace,monospa
       <button class=row onclick="verifyIps()">🔎 Vérifier IP ↔ PC</button>
       <button class=row onclick="bulk('deploy','🚀 Déployer/réinstaller l’agent sur TOUS les PC en ligne ?')">🚀 Déployer l’agent</button>
       <button class=row onclick="updateAgents()">⬆️ Mettre à jour les agents obsolètes</button>
+      <button class=row onclick="bulk('tools','🎮 Pousser les outils (Strudel, Zork…) — mis à jour uniquement là où ils sont déjà installés. Continuer ?')">🎮 Pousser les outils</button>
       <span class=status id=bulkst></span>
     </div>
     <div id=verifylist></div>
