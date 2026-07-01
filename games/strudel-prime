@@ -14,6 +14,12 @@ URL="${1:-https://strudel.cc}"
 PROFILE="${STRUDEL_PROFILE:-$HOME/.strudel-kiosk}"
 mkdir -p "$PROFILE"
 
+# AUDIO : cage efface l'environnement du navigateur -> on force les variables audio
+# directement dessus via 'env' (cf. commentaire détaillé dans 'strudel'). $RT calculé
+# ici (hors namespace) = vrai uid de l'enfant.
+RT="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+AUDIO_ENV="env XDG_RUNTIME_DIR=$RT PULSE_SERVER=unix:$RT/pulse/native"
+
 # Même détection de navigateur que le lanceur 'strudel'
 BROWSER=""
 for b in chromium chromium-browser chromium-freeworld chromium-freeworld-ozone \
@@ -68,11 +74,11 @@ if [ -z "${XKB_DEFAULT_LAYOUT:-}" ]; then
 fi
 
 if [ -n "$BROWSER" ]; then
-  exec "$REAL_CAGE" -- "$BROWSER" \
+  exec "$REAL_CAGE" -- $AUDIO_ENV "$BROWSER" \
     --ozone-platform-hint=auto \
     --user-data-dir="$PROFILE" \
     --app="$URL" --start-fullscreen \
     --no-first-run --no-default-browser-check
 else
-  exec "$REAL_CAGE" -- "$FF" --kiosk "$URL"
+  exec "$REAL_CAGE" -- $AUDIO_ENV "$FF" --kiosk "$URL"
 fi

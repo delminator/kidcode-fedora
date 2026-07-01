@@ -24,6 +24,16 @@ URL="${1:-https://strudel.cc}"
 PROFILE="$HOME/.strudel-kiosk"
 mkdir -p "$PROFILE"
 
+# ISOLATION RÉSEAU + AUDIO : on lance Chromium dans un namespace réseau (kiosque
+# hors-ligne) mais mappé sur l'uid RÉEL de l'enfant (--map-current-user), PAS root.
+# C'EST LA CLÉ DE L'AUDIO : en uid 1000, le service audio de Chromium trouve tout
+# seul /run/user/1000/pulse (PipeWire). Avec l'ancien wrapper cage (--map-root-user),
+# Chromium tournait en uid 0 du namespace et cherchait /run/user/0 -> MUET. Strudel
+# est une PWA en cache : pas besoin du loopback (contrairement à Sonic Pi/OSC), donc
+# pas besoin de CAP_NET_ADMIN. On appelle donc le VRAI cage (pas le wrapper).
+REAL_CAGE=/usr/bin/cage; [ -x "$REAL_CAGE" ] || REAL_CAGE="$(command -v cage || true)"
+NS="unshare --user --net --map-current-user --kill-child --"
+
 # 1) Cherche un navigateur Chromium (meilleur support AudioWorklet → Strudel fiable)
 BROWSER=""
 for b in chromium chromium-browser chromium-freeworld chromium-freeworld-ozone \
@@ -35,7 +45,7 @@ FALLBACK_FF=""
 if [ -z "$BROWSER" ] && command -v firefox >/dev/null 2>&1; then FALLBACK_FF="firefox"; fi
 
 # 2) cage présent ?
-if ! command -v cage >/dev/null 2>&1; then
+if [ -z "$REAL_CAGE" ]; then
   echo "strudel: 'cage' introuvable. Demande à l'admin de l'installer (pkg install cage)." >&2
   exit 1
 fi
@@ -56,12 +66,11 @@ if [ -z "${XKB_DEFAULT_LAYOUT:-}" ]; then
   export XKB_DEFAULT_MODEL="${km:-pc105}"
 fi
 
-# 3) Lance en plein écran sous cage
+# 3) Lance en plein écran : namespace réseau (hors-ligne) mappé sur l'uid RÉEL + cage
 if [ -n "$BROWSER" ]; then
-  # --no-sandbox : requis car sous le wrapper 'cage' verrouillé, Chromium tourne
-  #   en root-du-namespace (il refuserait de démarrer sinon). Sans danger ici :
-  #   le namespace réseau est vide, c'est un kiosque hors-ligne pour enfant.
-  exec cage -- "$BROWSER" \
+  # --no-sandbox : Chromium tourne déjà dans un user+net namespace ; on évite le
+  #   sandbox imbriqué. Le namespace réseau vide sert de bac à sable réseau.
+  exec $NS "$REAL_CAGE" -- "$BROWSER" \
     --ozone-platform-hint=auto \
     --no-sandbox \
     --user-data-dir="$PROFILE" \
@@ -70,7 +79,7 @@ if [ -n "$BROWSER" ]; then
     --no-first-run --no-default-browser-check \
     --autoplay-policy=no-user-gesture-required
 elif [ -n "$FALLBACK_FF" ]; then
-  exec cage -- "$FALLBACK_FF" --kiosk "$URL"
+  exec $NS "$REAL_CAGE" -- "$FALLBACK_FF" --kiosk "$URL"
 else
   cat >&2 <<'EOF'
 strudel: aucun navigateur trouvé.
