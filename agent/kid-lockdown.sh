@@ -414,10 +414,18 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 8. Groupes nécessaires pour cage / GL (accès DRM / input)
+# 8. Groupes nécessaires pour cage / GL (accès DRM / input) + MIDI (ALSA seq)
 # ---------------------------------------------------------------------------
-usermod -aG video,input,render "$KID"
-echo "==> $KID ajouté à video,input,render (pour cage/OpenGL)"
+# video,input,render : DRM/clavier/GL pour cage.
+# audio : INDISPENSABLE pour le MIDI (clavier/contrôleur USB dans Strudel).
+#   Le WebMIDI de Chromium ouvre le séquenceur ALSA /dev/snd/seq. Contrairement
+#   aux sorties son (controlC*/pcm*), /dev/snd/seq n'obtient PAS d'ACL logind
+#   (uaccess) — il reste root:audio 0660. Sans le groupe 'audio', Chromium ne voit
+#   AUCUNE entrée MIDI et les boutons pressés n'apparaissent nulle part.
+#   (Le son ne suffit pas comme test : PulseAudio passe par /run/user/UID/pulse,
+#    pas par /dev/snd/seq — l'audio peut marcher alors que le MIDI est muet.)
+usermod -aG video,input,render,audio "$KID"
+echo "==> $KID ajouté à video,input,render,audio (cage/OpenGL + MIDI ALSA)"
 
 # ---------------------------------------------------------------------------
 # 8b. Wrapper 'cage' SANS INTERNET.

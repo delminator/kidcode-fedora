@@ -17,6 +17,22 @@
 # un bac à sable étanche. Sur les machines durcies par kid-lockdown.sh, les navigateurs
 # sont blacklistés exprès : l'admin doit donc volontairement les réautoriser (voir tout en bas).
 #
+# 🎹 CLAVIER / CONTRÔLEUR MIDI (ex. Novation Launchkey Mini MK4 37) — 3 conditions :
+#   1) GROUPE 'audio' : le WebMIDI de Chromium ouvre le séquenceur ALSA /dev/snd/seq,
+#      qui est root:audio 0660 SANS ACL logind. Si l'enfant n'est pas dans le groupe
+#      'audio', Chromium ne voit AUCUNE entrée MIDI (boutons invisibles). kid-lockdown.sh
+#      l'ajoute désormais ; sinon :  sudo usermod -aG audio "$USER"  puis re-login.
+#      Vérif rapide (branché) :  aseqdump -l    → doit lister le Launchkey.
+#   2) PERMISSION Chromium : au 1er 'midin(...)', Chromium demande l'accès MIDI.
+#      Clique « Autoriser » UNE FOIS ; c'est mémorisé dans le profil ($PROFILE), donc
+#      fais-le pendant 'strudel-prime' (en ligne) pour que l'enfant n'ait rien à cliquer.
+#   3) CÔTÉ STRUDEL : les entrées n'apparaissent QUE si tu déclares le périphérique.
+#      Colle ceci puis Ctrl+Entrée (le nom doit matcher aseqdump -l ; un préfixe suffit) :
+#          await midin('Launchkey')      // ouvre l'entrée + logue les messages reçus
+#      Les notes/CC pressés s'affichent alors dans la console Strudel (icône </> en bas).
+#      Exemple pour JOUER avec le clavier :  n(midin('Launchkey')).sound('piano')
+#   (Firefox n'a PAS de WebMIDI : pour le MIDI, il FAUT Chromium.)
+#
 # Usage :  strudel [URL]     (par défaut https://strudel.cc)
 set -euo pipefail
 
