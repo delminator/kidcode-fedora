@@ -24,6 +24,16 @@ URL="${1:-https://strudel.cc}"
 PROFILE="$HOME/.strudel-kiosk"
 mkdir -p "$PROFILE"
 
+# Auto-réparation d'un verrou de session Chromium périmé : un kiosque fermé
+# salement (coupure de courant, arrêt brutal) laisse SingletonLock/Socket/Cookie
+# dans le profil. Au lancement suivant, Chromium refuse alors de démarrer
+# ("profil utilisé par un autre ordinateur", surtout si le hostname a changé
+# entre 'fedora' et 'fedora.home'). Si PLUS AUCUN Chromium n'utilise ce profil,
+# on retire ces verrous morts avant de lancer.
+if [ -e "$PROFILE/SingletonLock" ] && ! pgrep -f "user-data-dir=$PROFILE" >/dev/null 2>&1; then
+  rm -f "$PROFILE/SingletonLock" "$PROFILE/SingletonSocket" "$PROFILE/SingletonCookie"
+fi
+
 # RÉSEAU + AUDIO : Strudel charge ses échantillons (sons) à la demande depuis le net.
 # On le laisse donc EN LIGNE, mais la machine tourne en LISTE BLANCHE DNS (pare-feu
 # kidfw) limitée aux sites de sons (strudel.cc + CDN d'échantillons) : tous les sons

@@ -38,6 +38,13 @@ if ! id "$KID" >/dev/null 2>&1; then
 fi
 echo "==> Installation surveillance + quota pour le compte : $KID"
 
+# --- Marqueur de RÔLE (anti-bêtise, cf docs/machine-roles.md) : machine « timetrack ».
+# kid-lockdown.sh lit ce marqueur et REFUSE de la verrouiller par erreur.
+ROLE_FILE=/etc/kid-machine-role
+_prev=""; [[ -r "$ROLE_FILE" ]] && _prev="$(tr -d '[:space:]' < "$ROLE_FILE")"
+[[ "$_prev" == lockdown* ]] && echo "AVERTISSEMENT : machine marquée 'lockdown' -> repassée en 'timetrack'." >&2
+echo timetrack > "$ROLE_FILE" 2>/dev/null || true
+
 # Verrou d'installation : suspend le watchdog kid-guard pendant qu'on (ré)écrit
 # l'agent, pour qu'une MISE À JOUR LÉGITIME (fichiers d'unit qui changent) ne
 # soit PAS prise pour un sabotage et ne déclenche pas le verrou. Le watchdog

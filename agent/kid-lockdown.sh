@@ -34,6 +34,26 @@ if ! id "$KID" &>/dev/null; then
   echo "ERREUR : l'utilisateur '$KID' n'existe pas." >&2
   exit 1
 fi
+
+# --- Garde-fou de RÔLE (anti-bêtise du 2026-07-04, cf docs/machine-roles.md) ---
+# Une machine « timetrack » (surveillance + quota) ne doit JAMAIS être verrouillée :
+# le lockdown y pose un wrapper cage SANS réseau + une blacklist dnf navigateurs,
+# ce qui a cassé Strudel sur .19 (carmness). On refuse, sauf --force explicite.
+ROLE_FILE=/etc/kid-machine-role
+FORCE_LOCKDOWN=0; for _a in "$@"; do [[ "$_a" == "--force" ]] && FORCE_LOCKDOWN=1; done
+_role=""; [[ -r "$ROLE_FILE" ]] && _role="$(tr -d '[:space:]' < "$ROLE_FILE")"
+[[ -z "$_role" && -x /usr/local/bin/kidtime-enforce ]] && _role="timetrack(auto-détecté)"
+if [[ "$_role" == timetrack* && $FORCE_LOCKDOWN -eq 0 ]]; then
+  cat >&2 <<'ROLEMSG'
+ERREUR : cette machine a le rôle « timetrack » (surveillance + quota, PAS de lockdown).
+  Y appliquer le lockdown casse Strudel et les navigateurs (wrapper cage sans réseau
+  + blacklist dnf). C'est exactement la bêtise du 2026-07-04 sur .19 (carmness).
+  Si c'est VRAIMENT voulu : retire d'abord kid-timetrack, puis relance avec --force.
+ROLEMSG
+  exit 2
+fi
+echo lockdown > "$ROLE_FILE" 2>/dev/null || true
+
 echo "==> Verrouillage console pour l'utilisateur : $KID"
 
 # ---------------------------------------------------------------------------
