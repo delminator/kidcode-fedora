@@ -457,6 +457,9 @@ def _resource_dir():
 AGENT_SCRIPT = _resource_dir() / "agent" / "kid-timetrack.sh"
 GUARD_SCRIPT = _resource_dir() / "agent" / "kid-guard.sh"
 GAMES_DIR = _resource_dir() / "games"
+GUIDES_DIR = _resource_dir() / "guides"
+# Guides enfants (HTML) déposés dans ~/Guides à chaque déploiement d'agent.
+KID_GUIDES = ("tuto-tous-les-enfants.html", "guide-strudel-musique.html")
 
 
 def _agent_version():
@@ -471,9 +474,50 @@ def _agent_version():
 AGENT_VERSION = _agent_version()
 
 
+def deploy_kidtools(m):
+    """Best-effort : pose les OUTILS DE BASE enfants sur le PC — lanceurs Strudel
+    (+ strudel-prime) depuis games/, Chromium (dépendance ; installé s'il manque, en
+    contournant l'exclusion navigateurs du lockdown), la politique DNS-système (pour
+    que le pare-feu kidfw s'applique à Chromium), et les GUIDES (HTML) dans ~/Guides.
+    N'échoue JAMAIS le déploiement de l'agent : renvoie juste un court état."""
+    acct = m.get("account") or m["name"]
+    try:
+        for name in ("strudel", "strudel-prime"):
+            p = GAMES_DIR / name
+            if p.exists():
+                ssh_put_text(m, p.read_text(), "/tmp/.kt-" + name)
+        for g in KID_GUIDES:
+            p = GUIDES_DIR / g
+            if p.exists():
+                ssh_put_text(m, p.read_text(), "/tmp/.ktg-" + g)
+        doh = '{"DnsOverHttpsMode":"off","BuiltInDnsClientEnabled":false}'
+        cmd = (
+            "set +e\n"
+            "home=$(getent passwd " + acct + " | cut -d: -f6); [ -n \"$home\" ] || home=/home/" + acct + "\n"
+            "for n in strudel strudel-prime; do [ -f /tmp/.kt-$n ] && install -m0755 -o root -g root /tmp/.kt-$n /usr/local/bin/$n; rm -f /tmp/.kt-$n; done\n"
+            "command -v chromium-browser chromium >/dev/null 2>&1 || rpm -q chromium >/dev/null 2>&1 "
+            "|| dnf install -y --setopt=exclude= chromium >/dev/null 2>&1\n"
+            "for d in /etc/chromium/policies/managed /etc/chromium-browser/policies/managed; do "
+            "mkdir -p \"$d\"; printf '%s\\n' '" + doh + "' > \"$d/kidcode-dns.json\"; done\n"
+            "mkdir -p \"$home/Guides\"\n"
+            "for g in /tmp/.ktg-*; do [ -f \"$g\" ] && install -m0644 \"$g\" "
+            "\"$home/Guides/$(basename \"$g\" | sed 's/^\\.ktg-//')\"; rm -f \"$g\"; done\n"
+            "chown -R " + acct + ":" + acct + " \"$home/Guides\" 2>/dev/null\n"
+            "command -v chromium-browser chromium >/dev/null 2>&1 && echo CHROME_OK\n"
+            "echo KT_DONE\n"
+        )
+        rc, o, e = ssh_run(m, cmd, timeout=300)
+        if "KT_DONE" not in o:
+            return "outils : partiel"
+        return "Strudel + guides posés (" + ("Chromium ✓" if "CHROME_OK" in o else "Chromium manquant") + ")"
+    except Exception:  # noqa
+        return "outils : non posés"
+
+
 def deploy_agent(m):
     """Déploie le bundle agent (kid-timetrack + durcissement kid-guard) et le lance.
-    kid-timetrack.sh écrit /etc/kidtime/agent-version → sert au suivi de version."""
+    kid-timetrack.sh écrit /etc/kidtime/agent-version → sert au suivi de version.
+    Puis pose les OUTILS DE BASE enfants (Strudel + guides) via deploy_kidtools."""
     try:
         if not AGENT_SCRIPT.exists():
             return {"ok": False, "msg": "agent/kid-timetrack.sh introuvable"}
@@ -503,7 +547,8 @@ def deploy_agent(m):
         cmd += "; rm -f /var/lib/kidtime/.installing /var/lib/kidtime/.strike"
         rc, out, err = ssh_run(m, cmd, timeout=300)
         if rc == 0:
-            return {"ok": True, "msg": f"agent v{AGENT_VERSION} déployé"}
+            extra = deploy_kidtools(m)     # best-effort : Strudel + guides de base
+            return {"ok": True, "msg": f"agent v{AGENT_VERSION} déployé · {extra}"}
         return {"ok": False, "msg": (err.strip() or out.strip() or "échec")[:160]}
     except Exception as e:  # noqa
         return {"ok": False, "msg": _ssh_err(e)}

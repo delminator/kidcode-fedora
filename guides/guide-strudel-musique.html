@@ -1,0 +1,1511 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8">
+<title>Le grand guide niveau 2 de l'artiste — Musique &amp; Graphisme</title>
+<style>
+  @page { size: A4; margin: 14mm; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body{ font:15px/1.6 "Segoe UI",system-ui,sans-serif; color:#1a1a1a; max-width:840px;
+        margin:0 auto; padding:20px; background:#fff; }
+  h1{ font-size:28px; color:#8a2d6b; margin:.3em 0; }
+  h2{ font-size:21px; color:#8a2d6b; margin-top:1.2em; border-bottom:3px solid #edcfe2; padding-bottom:4px; }
+  h3{ font-size:17px; color:#5e1b49; margin:.9em 0 .3em; }
+  .lead{ font-size:16px; background:#fdf3f9; border:1px solid #edcfe2; border-radius:10px; padding:14px 16px; }
+  code,.cmd,pre.code{ font-family:"Cascadia Code",Consolas,ui-monospace,monospace; }
+  .cmd{ display:block; background:#1a1024; color:#f3e7f7; border-radius:8px; padding:8px 12px;
+        margin:6px 0; font-size:14px; white-space:pre-wrap; }
+  .cmd b{ color:#f7a8e0; } .cmd i{ color:#b29ac0; font-style:normal; }
+  pre.code{ background:#1a1024; color:#f3e7f7; border-radius:8px; padding:11px 13px; overflow:auto;
+            font-size:13.5px; line-height:1.5; white-space:pre; }
+  p code{ background:#f7e9f2; border:1px solid #ecd3e3; border-radius:5px; padding:1px 6px; color:#a8246b; }
+  td code,th code,li code{ background:#f7e9f2; border:1px solid #ecd3e3; border-radius:5px; padding:0 5px; color:#a8246b; }
+  .tip{ background:#fff7e6; border:1px solid #ffe0a3; border-radius:10px; padding:11px 15px; margin:12px 0; }
+  .tip b{ color:#a85c00; }
+  .warn{ background:#fdecec; border:1px solid #f6b9b9; border-radius:10px; padding:11px 15px; margin:12px 0; }
+  .run{ display:inline-block; color:#fff; background:#0f7a45; font-weight:600;
+        border-radius:7px; padding:2px 9px; margin:3px 0; font-size:13.5px; }
+  .see{ display:inline-block; color:#fff; background:#5b3fb0; font-weight:600;
+        border-radius:7px; padding:2px 9px; margin:3px 0; font-size:13.5px; }
+  .try{ background:#fffced; border:1px dashed #e6cf73; border-radius:8px; padding:7px 11px; margin:7px 0; font-size:14px; }
+  .expl{ background:#fdf3f9; border-radius:8px; padding:7px 11px; margin:5px 0 4px; font-size:13.5px; }
+  .expl code{ background:#f1dcea; border:none; color:#8a2d6b; }
+  .muted{ color:#888; } .small{ font-size:13px; }
+  table{ border-collapse:collapse; width:100%; margin:9px 0; font-size:13.5px; }
+  td,th{ border:1px solid #e3d2dd; padding:5px 9px; text-align:left; vertical-align:top; }
+  th{ background:#fdf3f9; } td:first-child code{ font-weight:bold; }
+  hr{ border:none; border-top:1px dashed #e0c8d6; margin:20px 0; }
+  .footer{ text-align:center; color:#777; font-size:13px; margin-top:30px; }
+  .pagebreak{ page-break-before:always; }
+  .kbd{ display:inline-block; background:#fff; border:2px solid #b07; border-bottom-width:4px;
+        border-radius:7px; padding:1px 8px; font-weight:700; color:#5e1b49; font-size:13.5px; }
+  /* défis / cartes colorées */
+  .defi{ background:#fdf3f9; border:2px solid #e6a9d0; border-radius:12px; padding:13px 17px; margin:16px 0; }
+  .defi h2{ margin-top:.2em; }
+  .step{ border-left:4px solid #e6a9d0; padding:2px 0 2px 13px; margin:11px 0; }
+  .step b.n{ display:inline-block; background:#8a2d6b; color:#fff; border-radius:20px;
+             padding:1px 10px; font-size:12.5px; margin-bottom:3px; }
+  /* bannière de PARTIE */
+  .part{ background:linear-gradient(95deg,#8a2d6b,#b03c8c); color:#fff; border-radius:12px;
+         padding:12px 18px; margin:26px 0 12px; }
+  .part .n{ font-size:12px; letter-spacing:3px; text-transform:uppercase; opacity:.85; }
+  .part h2{ color:#fff; border:none; margin:.1em 0 0; font-size:23px; }
+  /* mini-exercice fun */
+  .exo{ background:#f4fbf6; border:1px solid #b8e6cb; border-radius:9px; padding:8px 12px; margin:9px 0; }
+  .exo b.t{ color:#0f7a45; }
+  /* FICHES de synthèse : en-tête coloré par thème */
+  .fiche{ border:2px solid #ccc; border-radius:12px; margin:16px 0; overflow:hidden; break-inside:avoid; }
+  .fiche>.hd{ color:#fff; padding:8px 16px; font-size:18px; font-weight:800; letter-spacing:.5px; }
+  .fiche>.bd{ padding:6px 16px 12px; }
+  .fiche table{ margin:7px 0; }
+  .fiche table td:first-child{ white-space:nowrap; color:#222; }
+  .f-blue{ border-color:#1f5fb0; } .f-blue>.hd{ background:#1f5fb0; }
+  .f-purple{ border-color:#7b3fbf; } .f-purple>.hd{ background:#7b3fbf; }
+  .f-orange{ border-color:#d2731a; } .f-orange>.hd{ background:#d2731a; }
+  .f-green{ border-color:#0f7a45; } .f-green>.hd{ background:#0f7a45; }
+  .f-pink{ border-color:#c52e7e; } .f-pink>.hd{ background:#c52e7e; }
+  .f-teal{ border-color:#138a8a; } .f-teal>.hd{ background:#138a8a; }
+  .f-magenta{ border-color:#9b1f8e; } .f-magenta>.hd{ background:#9b1f8e; }
+  .f-gold{ border-color:#b8941f; } .f-gold>.hd{ background:#b8941f; }
+  figure{ margin:12px 0; text-align:center; } figure svg{ max-width:100%; height:auto; }
+  figcaption{ font-size:12.5px; color:#8a2d6b; margin-top:3px; }
+  .toc{ columns:2; column-gap:26px; font-size:14px; } .toc a{ color:#8a2d6b; text-decoration:none; }
+  .cover{ height:262mm; display:flex; flex-direction:column; align-items:center; justify-content:center;
+          text-align:center; page-break-after:always; position:relative;
+          background:linear-gradient(160deg,#b03c8c 0%,#8a2d6b 50%,#3d1238 100%); color:#fff;
+          border-radius:18px; padding:30px; }
+  .cover .frame{ border:3px solid rgba(255,255,255,.5); border-radius:16px; padding:40px 30px; width:100%; max-width:620px; }
+  .cover .peng{ font-size:88px; line-height:1; }
+  .cover .small2{ letter-spacing:6px; text-transform:uppercase; font-size:15px; opacity:.85; margin-top:16px; }
+  .cover .name{ font-size:62px; font-weight:800; text-transform:uppercase; letter-spacing:2px; margin:6px 0 2px; }
+  .cover .sub{ font-size:19px; opacity:.95; margin-top:10px; }
+  .cover .stars{ font-size:23px; letter-spacing:10px; margin:20px 0; }
+  .cover .badge{ display:inline-block; margin-top:20px; border:2px solid rgba(255,255,255,.6); border-radius:30px; padding:7px 20px; font-size:14px; }
+  .cover .ed{ position:absolute; bottom:22px; font-size:12px; opacity:.8; }
+</style></head>
+<body>
+
+<section class="cover"><div class="frame">
+  <div class="peng">🎹🎨</div>
+  <div class="small2">Le grand guide niveau 2 de</div>
+  <div class="name">l'artiste</div>
+  <div class="sub">Deux univers à coder :<br>🎵 la <b>musique</b> (Strudel) &amp; 🎨 le <b>graphisme</b> (la demoscene) ✨</div>
+  <div class="stars">★ ★ ★ ✦ ☆</div>
+  <div class="badge">Créatrice-codeuse · niveau 2</div>
+</div><div class="ed">Guide « niveau moyen » — édition XXL · 2026</div></section>
+
+<h1>🌟 Salut l'artiste !</h1>
+<p class="lead">Ce guide a <b>deux grands univers</b> : 🎵 le <b>Livre 1 — la Musique</b> (tu écris des mots, l'ordi
+joue une boucle), et 🎨 le <b>Livre 2 — le Graphisme</b> (tu écris du code, l'ordi <b>affiche des choses et les
+fait bouger</b> : c'est la <b>demoscene</b> !). Dans les deux : la même magie — <b>tu changes une chose, et hop,
+ça change tout de suite</b>. Plein de petits exercices rigolos, du plus simple au plus dingue. <b>Tu ne peux rien
+casser</b> — fonce ! 💪</p>
+
+<div class="tip"><b>🌟 La règle d'or (vraie pour les 2 univers) :</b> fais <b>UNE petite chose</b> à la fois →
+lance → <b>regarde/écoute</b> → garde si tu aimes → ajoute la suivante. C'est comme ça qu'on apprend, sans stress. 🌱</div>
+
+<h2>🗺️ Ce qu'il y a dans ce guide</h2>
+<div class="toc">
+<b>🎵 LIVRE 1 — La musique (Strudel)</b><br>
+1. 🥁 Le rythme &amp; la batterie<br>
+2. 🎛️ Tous les sons &amp; instruments<br>
+3. 🎵 Mélodies, gammes &amp; accords<br>
+4. ✨ Les effets (rendre joli / electro)<br>
+5. 🌊 Faire bouger la musique<br>
+6. 🎧 Jouer en LIVE comme un·e DJ<br>
+7. 👁️ TOUS les visuels (+ Hydra !)<br>
+8. 🚀 Mini-projets electro<br>
+&nbsp;&nbsp;&nbsp;📇 Les grandes fiches « musique »<br>
+<br>
+<b>🎨 LIVRE 2 — Le graphisme (demoscene)</b><br>
+9. 🟢 Afficher &amp; faire bouger (pygame)<br>
+10. 🌌 Les vrais effets demoscene<br>
+11. 🎆 Peindre avec des maths : les shaders<br>
+12. 🎬 La grande DEMO : image + musique<br>
+13. 🌀 Demo 2 : la boule qui tourne (vector balls)<br>
+&nbsp;&nbsp;&nbsp;📇 Les grandes fiches « graphisme »
+</div>
+
+<h2>🚀 Lancer mes ateliers — la base à connaître</h2>
+<p>Tu allumes l'ordi, tu te connectes, tu arrives à la <b>console</b>. Voici comment on démarre chaque atelier
+(tu apprendras chacun en détail dans son Livre) :</p>
+<table>
+<tr><th>Pour…</th><th>Tu tapes…</th><th>Pour fermer</th></tr>
+<tr><td>✏️ écrire / modifier un programme</td><td><code>micro mon-fichier.py</code></td><td><span class="kbd">Ctrl</span>+<span class="kbd">S</span> puis <span class="kbd">Ctrl</span>+<span class="kbd">Q</span></td></tr>
+<tr><td>🎵 faire de la <b>MUSIQUE</b> (Livre 1)</td><td><code>strudel</code></td><td><span class="kbd">Ctrl</span>+<span class="kbd">.</span> puis <span class="kbd">Ctrl</span>+<span class="kbd">W</span></td></tr>
+<tr><td>🎨 faire un <b>DESSIN</b> qui bouge (Livre 2)</td><td><code>cage -- python3 ma-demo.py</code></td><td><span class="kbd">Échap</span></td></tr>
+<tr><td>🎆 faire un <b>SHADER</b> (Livre 2)</td><td><code>cage -- glslViewer mon.frag</code></td><td><span class="kbd">Échap</span></td></tr>
+</table>
+<div class="tip">📁 <b>Range tes créations</b> dans des dossiers : la musique dans <code>~/Musique</code>, tes dessins dans <code>~/Demos</code>, tes shaders dans <code>~/Shaders</code>. Pour créer un dossier (une seule fois) : <code>mkdir Demos</code> — tu te souviens, du guide bleu 🐧.</div>
+<p class="small muted">Dans Strudel, <span class="kbd">Ctrl</span>+<span class="kbd">Entrée</span> = jouer / mettre à jour. &nbsp; · &nbsp; <i>Note pour papa : la toute 1ʳᵉ fois, lancer <code>strudel-prime</code> en ligne pour que la musique marche ensuite hors-ligne.</i></p>
+
+<div class="tip"><b>🌟 La règle d'or du live coding :</b> change <b>UNE seule</b> chose, fais <span class="kbd">Ctrl</span>+<span class="kbd">Entrée</span>,
+<b>écoute</b>, garde si tu aimes. C'est comme ça qu'on découvre — pas besoin de tout comprendre d'un coup ! 🌱</div>
+
+<h2>⌨️ Où sont les signes spéciaux ? (à remplir avec papa)</h2>
+<p>Le code de musique utilise plein de signes « cachés » du clavier, souvent avec la touche <b>AltGr</b> (à droite de la barre d'espace).
+Demande à papa de te les montrer <b>une fois</b>, et <b>note-les ici</b> pour ne plus jamais chercher :</p>
+<table>
+<tr><th>Signe</th><th>Sur TON clavier, c'est…</th><th>Ça sert à</th></tr>
+<tr><td><code>" "</code> guillemets</td><td>. . . . . . . . . . . .</td><td>entourer les sons et les notes</td></tr>
+<tr><td><code>( )</code> parenthèses</td><td>. . . . . . . . . . . .</td><td>les effets, et Euclide <code>bd(3,8)</code></td></tr>
+<tr><td><code>*</code> étoile</td><td>. . . . . . . . . . . .</td><td>répéter vite <code>hh*8</code></td></tr>
+<tr><td><code>~</code> tilde</td><td>. . . . . . . . . . . .</td><td>un silence</td></tr>
+<tr><td><code>[ ]</code> crochets</td><td>. . . . . . . . . . . .</td><td>serrer des sons</td></tr>
+<tr><td><code>&lt; &gt;</code> chevrons</td><td>. . . . . . . . . . . .</td><td>changer à chaque tour</td></tr>
+<tr><td><code>$</code> et <code>:</code></td><td>. . . . . . . . . . . .</td><td>une piste <code>$:</code></td></tr>
+<tr><td><code>.</code> point &nbsp;·&nbsp; <code>,</code> virgule</td><td>. . . . . . . . . . . .</td><td>coller un effet &nbsp;·&nbsp; jouer ensemble</td></tr>
+</table>
+
+<h2>🆘 Au secours, ça marche pas !</h2>
+<p>C'est <b>normal</b> — ça arrive à tout le monde, même aux pros. Voici quoi faire toute seule :</p>
+<table>
+<tr><th>Ce qui se passe</th><th>Quoi faire</th></tr>
+<tr><td>🔇 <b>Pas de son</b></td><td><b>Clique une fois</b> dans la page, puis <span class="kbd">Ctrl</span>+<span class="kbd">Entrée</span> (le son attend un clic pour se réveiller). Vérifie aussi le volume.</td></tr>
+<tr><td>🟥 Du texte <b>rouge</b> en bas</td><td>Une faute de frappe. Compte : chaque <code>"</code> a son <code>"</code>, chaque <code>(</code> son <code>)</code>, et les <code>,</code> entre les pistes.</td></tr>
+<tr><td>😵 Ça joue <b>bizarre</b> / figé</td><td><span class="kbd">Ctrl</span>+<span class="kbd">.</span> pour tout arrêter, puis <span class="kbd">Ctrl</span>+<span class="kbd">Entrée</span> pour relancer.</td></tr>
+<tr><td>🐌 Les visuels <b>Hydra</b> rament</td><td>Enlève la ligne <code>initHydra</code> et la ligne qui finit par <code>.out(o0)</code>. La musique, elle, continue.</td></tr>
+<tr><td>🔌 Un son <b>ne se charge pas</b></td><td>(Hors-ligne) il n'est pas dans le cache → demande à papa de relancer <code>strudel-prime</code> en ligne.</td></tr>
+</table>
+
+<!-- ============================================================ PARTIE 1 -->
+<div class="part"><div class="n">Partie 1</div><h2 id="p1">🥁 Le rythme &amp; la batterie</h2></div>
+
+<div class="defi">
+<h3>Échauffement — boum, tss, tac</h3>
+<div class="step"><b class="n">1</b> Un son tout seul :
+<div class="cmd">sound("bd")</div>
+<span class="run">▶ Ctrl+Entrée</span> → « boum … boum … » 🔊</div>
+
+<div class="step"><b class="n">2</b> Plusieurs sons = des espaces entre eux. Tout ce qui est entre les guillemets <code>" "</code> = <b>un tour</b> (un <b>cycle</b>) :
+<div class="cmd">sound("bd hh sd hh")</div>
+<span class="run">▶</span> → boum-tss-tac-tss en boucle. <code>bd</code>=grosse caisse, <code>hh</code>=charleston, <code>sd</code>=caisse claire.</div>
+</div>
+
+<figure>
+<svg viewBox="0 0 540 120" role="img" aria-label="un cycle découpé en quatre sons">
+  <text x="270" y="18" font-family="Segoe UI" font-size="13" fill="#8a2d6b" text-anchor="middle" font-weight="700">1 cycle = 1 tour, partagé en parts égales, puis ça boucle ↻</text>
+  <g font-family="Segoe UI" font-weight="700" text-anchor="middle">
+    <rect x="40" y="34" width="110" height="54" rx="10" fill="#f7d6ea" stroke="#8a2d6b" stroke-width="2"/><text x="95" y="60" font-size="17" fill="#8a2d6b">bd</text><text x="95" y="80" font-size="11" fill="#a06">boum</text>
+    <rect x="155" y="34" width="110" height="54" rx="10" fill="#dbeefb" stroke="#1f5fb0" stroke-width="2"/><text x="210" y="60" font-size="17" fill="#1f5fb0">hh</text><text x="210" y="80" font-size="11" fill="#1f5fb0">tss</text>
+    <rect x="270" y="34" width="110" height="54" rx="10" fill="#fde2c4" stroke="#a85c00" stroke-width="2"/><text x="325" y="60" font-size="17" fill="#a85c00">sd</text><text x="325" y="80" font-size="11" fill="#a85c00">tac</text>
+    <rect x="385" y="34" width="110" height="54" rx="10" fill="#dbeefb" stroke="#1f5fb0" stroke-width="2"/><text x="440" y="60" font-size="17" fill="#1f5fb0">hh</text><text x="440" y="80" font-size="11" fill="#1f5fb0">tss</text>
+  </g>
+</svg></figure>
+
+<div class="exo"><b class="t">🎯 Exo —</b> écris un rythme avec <b>8 sons</b>. <span class="cmd">sound("bd hh sd hh bd hh sd cp")</span></div>
+
+<h3>🎛️ Les signes magiques — un par un</h3>
+<p>Chaque signe spécial ajoute un pouvoir au rythme. Essaie-les <b>un par un</b>, et <b>écoute</b> la différence à chaque fois !</p>
+<div class="defi">
+<div class="step"><b class="n">~ &nbsp;le silence</b><br>
+Le <code>~</code> (tilde) = « chut, rien ici » → ça fait un <b>trou</b> dans le rythme.
+<div class="cmd">sound("bd ~ sd ~")</div>
+<span class="run">▶ Ctrl+Entrée</span> → boum … tac … (plus aéré qu'avant).</div>
+
+<div class="step"><b class="n">* &nbsp;répéter vite</b><br>
+Une étoile <code>*</code> et un chiffre <b>collés</b> à un son = le jouer plein de fois dans sa part.
+<div class="cmd">sound("bd hh*4 sd hh")</div>
+<span class="run">▶</span> → le charleston fait « trrr » (4 fois plus vite) à cet endroit. 🥁</div>
+
+<div class="step"><b class="n">[ ] &nbsp;serrer des sons</b><br>
+Les crochets <code>[ ]</code> serrent plusieurs sons dans <b>une seule</b> part.
+<div class="cmd">sound("bd [sd sd] bd sd")</div>
+<span class="run">▶</span> → un petit « ti-ti » de caisse claire rapide.</div>
+
+<div class="step"><b class="n">&lt; &gt; &nbsp;changer à chaque tour</b><br>
+Les chevrons <code>&lt; &gt;</code> = une chose <b>différente à chaque tour</b>.
+<div class="cmd">sound("bd &lt;sd cp&gt;")</div>
+<span class="run">▶</span> → 1er tour : bd puis sd ; 2e tour : bd puis cp ; et ça recommence. 🎠</div>
+
+<div class="step"><b class="n">, &nbsp;en même temps</b><br>
+La virgule <code>,</code> = empiler <b>2 rythmes en même temps</b>.
+<div class="cmd">sound("bd*4, hh*8")</div>
+<span class="run">▶</span> → 4 grosses caisses ET 8 charlestons, ensemble ! 🎉</div>
+
+<div class="step"><b class="n">! &nbsp;répéter un son</b><br>
+Le <code>!</code> répète un son : <code>bd!3</code> veut dire <code>bd bd bd</code>.
+<div class="cmd">sound("bd!3 sd")</div>
+<span class="run">▶</span> → boum-boum-boum tac.</div>
+</div>
+<div class="tip">💡 <b>Et tu peux tout mélanger !</b> Essaie ce mélange et change-le :
+<div class="cmd">sound("bd!2 ~ [sd sd], hh*8")</div></div>
+
+<h3>⚡ Rythmes « magiques » : Euclide <code>(x,y)</code></h3>
+<p>Mets <code>(3,8)</code> après un son : Strudel répartit <b>3 coups</b> dans <b>8 cases</b> tout seul — ça sonne super bien (c'est le secret de plein de musiques !).</p>
+<div class="cmd">sound("bd(3,8)")            <i># 3 boums bien placés sur 8</i>
+sound("bd(3,8), hh*8, ~ cp")  <i># un vrai groove !</i></div>
+<figure>
+<svg viewBox="0 0 540 280" role="img" aria-label="le rythme d'Euclide 3 sur 8 dessiné sur un cercle de 8 pas avec 3 coups">
+  <text x="270" y="16" font-family="Segoe UI" font-size="13" font-weight="700" fill="#8a2d6b" text-anchor="middle">bd(3,8) — 3 « boum » répartis tout seuls dans 8 cases, en rond ↻</text>
+  <!-- cercle -->
+  <circle cx="160" cy="142" r="88" fill="none" stroke="#e0c8d6" stroke-width="2"/>
+  <!-- triangle reliant les 3 coups -->
+  <path d="M160 54 L222 204 L72 142 Z" fill="#8a2d6b" opacity="0.10" stroke="#8a2d6b" stroke-width="1.5" stroke-dasharray="4 3"/>
+  <!-- numéros des 8 pas -->
+  <g font-family="Segoe UI" font-size="11" fill="#b09" text-anchor="middle">
+    <text x="160" y="30">1</text><text x="240" y="65">2</text><text x="272" y="146">3</text><text x="240" y="220">4</text>
+    <text x="160" y="255">5</text><text x="80" y="220">6</text><text x="48" y="146">7</text><text x="80" y="65">8</text>
+  </g>
+  <!-- pas : coups (pleins) et silences (creux) -->
+  <g>
+    <!-- silences -->
+    <g fill="#fff" stroke="#c8a8bd" stroke-width="2">
+      <circle cx="222" cy="80" r="9"/><circle cx="248" cy="142" r="9"/>
+      <circle cx="160" cy="230" r="9"/><circle cx="98" cy="204" r="9"/><circle cx="98" cy="80" r="9"/>
+    </g>
+    <!-- coups (boum) : pas 1, 4, 7 -->
+    <g fill="#8a2d6b">
+      <circle cx="160" cy="54" r="16"/><circle cx="222" cy="204" r="16"/><circle cx="72" cy="142" r="16"/>
+    </g>
+    <g fill="#fff" font-family="Segoe UI" font-size="10" font-weight="700" text-anchor="middle">
+      <text x="160" y="58">boum</text><text x="222" y="208">boum</text><text x="72" y="146">boum</text>
+    </g>
+  </g>
+  <!-- flèche de sens -->
+  <path d="M196 36 a120 120 0 0 1 22 14" fill="none" stroke="#0f7a45" stroke-width="2"/>
+  <path d="M218 50 l-8 -2 l5 -6 z" fill="#0f7a45"/>
+  <!-- version linéaire à droite -->
+  <text x="420" y="86" font-family="Segoe UI" font-size="12" fill="#555" text-anchor="middle">la même chose « à plat » :</text>
+  <g font-family="Cascadia Code,monospace" font-size="13" text-anchor="middle">
+    <g fill="#8a2d6b" font-weight="700"><rect x="304" y="100" width="26" height="26" rx="4"/><rect x="382" y="100" width="26" height="26" rx="4"/><rect x="460" y="100" width="26" height="26" rx="4"/></g>
+    <g fill="#fff" stroke="#c8a8bd" stroke-width="2"><rect x="330" y="100" width="26" height="26" rx="4"/><rect x="356" y="100" width="26" height="26" rx="4"/><rect x="408" y="100" width="26" height="26" rx="4"/><rect x="434" y="100" width="26" height="26" rx="4"/><rect x="486" y="100" width="26" height="26" rx="4"/></g>
+    <g fill="#fff"><text x="317" y="118">x</text><text x="395" y="118">x</text><text x="473" y="118">x</text></g>
+    <g fill="#c8a8bd"><text x="343" y="118">·</text><text x="369" y="118">·</text><text x="421" y="118">·</text><text x="447" y="118">·</text><text x="499" y="118">·</text></g>
+  </g>
+  <text x="408" y="150" font-family="Segoe UI" font-size="12" fill="#8a2d6b" text-anchor="middle" font-weight="700">x . . x . . x .</text>
+  <text x="408" y="184" font-family="Segoe UI" font-size="11.5" fill="#555" text-anchor="middle">Change les nombres :</text>
+  <text x="408" y="204" font-family="Cascadia Code,monospace" font-size="12.5" fill="#a8246b" text-anchor="middle">(5,8) · (3,4) · (7,16)</text>
+  <text x="408" y="224" font-family="Segoe UI" font-size="11.5" fill="#555" text-anchor="middle">→ chacun un nouveau groove !</text>
+</svg>
+<figcaption>3 coups « le plus régulièrement possible » sur 8 pas : ce rythme se retrouve dans des musiques du monde entier 🌍.</figcaption>
+</figure>
+<div class="exo"><b class="t">🎯 Exo —</b> essaie <code>bd(5,8)</code>, <code>hh(7,16)</code>, <code>sd(2,8)</code> → chaque nombre = un nouveau rythme.</div>
+
+<h3>Plus rapide, plus lent, plus dense</h3>
+<table>
+<tr><td><code>.fast(2)</code></td><td>2× plus vite</td><td><code>sound("bd sd").fast(2)</code></td></tr>
+<tr><td><code>.slow(2)</code></td><td>2× plus lent</td><td><code>sound("bd sd").slow(2)</code></td></tr>
+<tr><td><code>.ply(2)</code></td><td>répète <b>chaque</b> son</td><td><code>sound("bd sd cp").ply(2)</code></td></tr>
+<tr><td><code>.swing(4)</code></td><td>balance « shuffle »</td><td><code>sound("hh*8").swing(4)</code></td></tr>
+</table>
+
+<!-- ============================================================ PARTIE 2 -->
+<div class="part"><div class="n">Partie 2</div><h2 id="p2">🎛️ Tous les sons &amp; instruments</h2></div>
+
+<h3>🥁 Les sons de batterie</h3>
+<table>
+<tr><td><code>bd</code> grosse caisse</td><td><code>sd</code> caisse claire</td><td><code>hh</code> charleston</td><td><code>oh</code> charleston ouvert</td></tr>
+<tr><td><code>cp</code> clap</td><td><code>rim</code> petit tic</td><td><code>lt mt ht</code> toms</td><td><code>rd cr</code> cymbales</td></tr>
+</table>
+<div class="cmd">sound("bd sd, hh*8, ~ ~ cp ~")</div>
+
+<h3>🤖 Choisir la boîte à rythmes (808, 909…)</h3>
+<p>Ajoute <code>.bank("…")</code> pour changer le <b>matériel</b> : la 808 = sons profonds de hip-hop, la 909 = sons de techno !</p>
+<div class="cmd">sound("bd*4, ~ cp").bank("RolandTR909")   <i># techno</i>
+sound("bd*4, ~ cp").bank("RolandTR808")   <i># hip-hop</i></div>
+<div class="tip">Tu peux même <b>alterner</b> les boîtes à chaque tour : <code>.bank("&lt;RolandTR808 RolandTR909&gt;")</code> 🤯</div>
+<div class="exo"><b class="t">🎯 Exo —</b> et <code>bd:3</code> choisit une <b>variante</b> du son : <code>sound("bd:0 bd:1 bd:2 bd:3").bank("RolandTR909")</code></div>
+
+<h3>🎹 Les instruments (synthés)</h3>
+<p>Pour des <b>notes</b>, on utilise <code>note(...)</code> et on choisit l'instrument avec <code>.sound("…")</code> :</p>
+<table>
+<tr><th>Instrument</th><th>Le son</th><th>Essaie</th></tr>
+<tr><td><code>sawtooth</code></td><td>qui gratte (electro ⚡)</td><td><code>note("c e g").sound("sawtooth")</code></td></tr>
+<tr><td><code>square</code></td><td>jeu vidéo rétro 👾</td><td><code>note("c e g").sound("square")</code></td></tr>
+<tr><td><code>triangle</code></td><td>tout doux</td><td><code>note("c e g").sound("triangle")</code></td></tr>
+<tr><td><code>sine</code></td><td>une flûte ronde</td><td><code>note("c e g").sound("sine")</code></td></tr>
+<tr><td><code>piano</code></td><td>un vrai piano 🎹</td><td><code>note("c e g").sound("piano")</code></td></tr>
+</table>
+<div class="tip"><b>Plein d'autres sons !</b> En haut de Strudel, clique sur le menu <b>« sounds »</b> : il y a des centaines de sons à essayer. Tu écris juste leur nom dans <code>.sound("…")</code>.</div>
+
+<h3>🌫️ Les bruits (pour le vent, la mer, les cymbales…)</h3>
+<div class="cmd">sound("&lt;white pink brown&gt;").slow(2)   <i># du plus dur au plus doux</i></div>
+
+<div class="exo"><b class="t">🎯 Exo bonus —</b> le son <code>square</code> + une mélodie rapide = musique de jeu vidéo :
+<div class="cmd">note("c c g g a a g").sound("square").fast(2)</div></div>
+
+<!-- ============================================================ PARTIE 3 -->
+<div class="part"><div class="n">Partie 3</div><h2 id="p3">🎵 Mélodies, gammes &amp; accords</h2></div>
+
+<h3>Les notes</h3>
+<table>
+<tr><th>Lettre</th><td><code>c</code></td><td><code>d</code></td><td><code>e</code></td><td><code>f</code></td><td><code>g</code></td><td><code>a</code></td><td><code>b</code></td></tr>
+<tr><th>Note</th><td>do</td><td>ré</td><td>mi</td><td>fa</td><td>sol</td><td>la</td><td>si</td></tr>
+</table>
+<p>Un chiffre = l'<b>octave</b> : <code>c2</code> grave 🐻, <code>c5</code> aigu 🐦. Un <code>#</code> monte d'un demi-ton, un <code>b</code> descend.</p>
+<div class="cmd">note("c e g e a g e c").sound("piano")</div>
+<div class="exo"><b class="t">🎯 Exo —</b> « Au clair de la lune » : <code>note("c c c d e d c e d d c").sound("piano")</code> 🌙</div>
+
+<h3>🎯 La gamme : impossible de faire une fausse note !</h3>
+<p>Avec <code>n("…").scale("…")</code>, tu donnes juste des <b>chiffres</b> (0,1,2,3…) et Strudel les transforme en notes
+qui vont <b>toujours bien ensemble</b>. <code>C:minor</code> = un peu triste/mystérieux (parfait pour l'electro 🌚) :</p>
+<div class="cmd">n("0 2 4 2 0 4 6 4").scale("C:minor").sound("sawtooth")</div>
+<div class="expl">🔍 Change juste les chiffres → toujours joli. Essaie <code>"C:major"</code> (joyeux) ou <code>"C:minor:pentatonic"</code> (qui sonne « asiatique »).</div>
+<div class="exo"><b class="t">🎯 Exo —</b> mélodie au hasard mais toujours juste : <code>n("0 1 2 3 4 5 6 7").scale("&lt;C:minor F:minor&gt;").sound("triangle")</code></div>
+
+<h3>🎶 Les accords (plusieurs notes ensemble)</h3>
+<div class="cmd">n("0 1 2 3").chord("&lt;C Am F G&gt;").voicing().sound("sawtooth")</div>
+<div class="expl">🔍 <code>chord("&lt;C Am F G&gt;")</code> = la suite d'accords ; <code>.voicing()</code> les arrange joliment. Ces 4 accords font des MILLIERS de chansons ! 🎸</div>
+
+<!-- ============================================================ PARTIE 4 -->
+<div class="part"><div class="n">Partie 4</div><h2 id="p4">✨ Les effets — rendre joli / electro</h2></div>
+<p>Un effet = un petit <code>.mot</code> collé à la fin d'une ligne. On peut en enchaîner plein. Le son <b>traverse</b> chaque effet, de gauche à droite, puis sort par les enceintes. Ajoute-les <b>un par un</b> et écoute !</p>
+<figure>
+<svg viewBox="0 0 540 178" role="img" aria-label="la chaîne d'effets : le son passe par le filtre puis l'écho puis sort">
+  <text x="270" y="16" font-family="Segoe UI" font-size="13" font-weight="700" fill="#8a2d6b" text-anchor="middle">Le son traverse les effets, de gauche à droite → 🔊</text>
+  <!-- BOITE 1 : SON -->
+  <rect x="10" y="44" width="108" height="68" rx="11" fill="#f7d6ea" stroke="#8a2d6b" stroke-width="2"/>
+  <text x="64" y="82" font-size="25" text-anchor="middle">🎹</text>
+  <text x="64" y="103" font-family="Segoe UI" font-size="13" font-weight="700" fill="#8a2d6b" text-anchor="middle">SON</text>
+  <text x="64" y="138" font-family="Cascadia Code,monospace" font-size="11" fill="#8a2d6b" text-anchor="middle">sound("saw")</text>
+  <!-- BOITE 2 : FILTRE -->
+  <rect x="148" y="44" width="108" height="68" rx="11" fill="#fde2c4" stroke="#d2731a" stroke-width="2"/>
+  <text x="202" y="82" font-size="25" text-anchor="middle">🎚️</text>
+  <text x="202" y="103" font-family="Segoe UI" font-size="13" font-weight="700" fill="#a85c00" text-anchor="middle">FILTRE</text>
+  <text x="202" y="138" font-family="Cascadia Code,monospace" font-size="11" fill="#a85c00" text-anchor="middle">.lpf(800)</text>
+  <!-- BOITE 3 : ÉCHO -->
+  <rect x="286" y="44" width="108" height="68" rx="11" fill="#dbeefb" stroke="#1f5fb0" stroke-width="2"/>
+  <text x="340" y="82" font-size="25" text-anchor="middle">🏛️</text>
+  <text x="340" y="103" font-family="Segoe UI" font-size="13" font-weight="700" fill="#1f5fb0" text-anchor="middle">ÉCHO</text>
+  <text x="340" y="138" font-family="Cascadia Code,monospace" font-size="10.5" fill="#1f5fb0" text-anchor="middle">.room(1).delay(.4)</text>
+  <!-- BOITE 4 : SORTIE -->
+  <rect x="424" y="44" width="108" height="68" rx="11" fill="#d9f0e2" stroke="#0f7a45" stroke-width="2"/>
+  <text x="478" y="83" font-size="25" text-anchor="middle">🔊</text>
+  <text x="478" y="103" font-family="Segoe UI" font-size="13" font-weight="700" fill="#0f7a45" text-anchor="middle">SORTIE</text>
+  <text x="478" y="138" font-family="Segoe UI" font-size="11" fill="#0f7a45" text-anchor="middle">tu entends !</text>
+  <!-- flèches -->
+  <g stroke="#8a2d6b" stroke-width="3" fill="#8a2d6b">
+    <line x1="120" y1="78" x2="142" y2="78"/><path d="M142 78 l-9 -5 l0 10 z"/>
+    <line x1="258" y1="78" x2="280" y2="78"/><path d="M280 78 l-9 -5 l0 10 z"/>
+    <line x1="396" y1="78" x2="418" y2="78"/><path d="M418 78 l-9 -5 l0 10 z"/>
+  </g>
+</svg>
+<figcaption>La même ligne en vrai : <code>sound("saw").lpf(800).room(1).delay(.4)</code> — chaque <code>.mot</code> = un étage de la chaîne.</figcaption>
+</figure>
+
+<h3>🎚️ Les filtres (la base de l'electro)</h3>
+<table>
+<tr><td><code>.lpf(500)</code></td><td>🌫️ feutré/sourd (<b>petit</b> chiffre = plus sourd)</td></tr>
+<tr><td><code>.lpq(10)</code></td><td>💧 ajoute un « miaou » résonnant au filtre</td></tr>
+<tr><td><code>.hpf(2000)</code></td><td>🪶 enlève les graves, ne garde que l'aigu</td></tr>
+<tr><td><code>.vowel("a e i o u")</code></td><td>🗣️ fait « parler » le son (aaa-eee-ooo)</td></tr>
+</table>
+<div class="cmd">note("c2 c2 g2 a2").sound("sawtooth").lpf(600).lpq(8)</div>
+
+<h3>🏛️ Écho &amp; réverbération (l'espace)</h3>
+<table>
+<tr><td><code>.room(1)</code></td><td>de l'écho de grande salle</td><td><code>.delay(.5)</code></td><td>une répétition « ho..ho..ho »</td></tr>
+</table>
+<div class="cmd">sound("~ cp").room(1).delay(.4)</div>
+
+<h3>🤖 Salir le son (electro / robot)</h3>
+<table>
+<tr><td><code>.distort(3)</code></td><td>🔥 ça sature, ça grogne</td><td><code>.crush(4)</code></td><td>👾 son « 8-bit » de vieux jeu</td></tr>
+<tr><td><code>.gain(.5)</code></td><td>🔉 moins fort</td><td><code>.pan("0 1")</code></td><td>↔️ saute oreille gauche/droite</td></tr>
+</table>
+<div class="cmd">sound("bd*4").distort(2), sound("hh*8").crush(6).gain(.5)</div>
+
+<h3>📈 L'enveloppe (apparition / disparition du son)</h3>
+<p><code>.attack</code> = temps pour <b>apparaître</b>, <code>.release</code> = temps pour <b>s'éteindre</b>. Un gros <code>attack</code> = un son qui « gonfle » comme un pad doux 🌫️ :</p>
+<div class="cmd">note("c e g").sound("sawtooth").attack(.5).release(1).room(1)</div>
+
+<h3>💥 LE pompage electro (sidechain)</h3>
+<p>L'effet « qui respire » de la techno : la basse <b>baisse</b> à chaque coup de grosse caisse. On utilise <code>.duckorbit</code> sur le kick et <code>.orbit</code> sur la basse :</p>
+<div class="cmd">sound("bd*4").duckorbit(2),
+note("c2*8").sound("sawtooth").lpf(700).orbit(2)</div>
+<div class="expl">🔍 Tu entends la basse « pomper » au rythme de la grosse caisse ? C'est LE son des clubs ! 🪩</div>
+<figure>
+<svg viewBox="0 0 540 210" role="img" aria-label="le pompage : la grosse caisse écrase le volume de la basse à chaque coup">
+  <text x="270" y="16" font-family="Segoe UI" font-size="13" font-weight="700" fill="#8a2d6b" text-anchor="middle">Le pompage : à chaque « boum », le volume de la basse plonge puis remonte</text>
+  <!-- grosses caisses -->
+  <g font-family="Segoe UI" text-anchor="middle">
+    <g fill="#8a2d6b"><circle cx="70" cy="48" r="17"/><circle cx="190" cy="48" r="17"/><circle cx="310" cy="48" r="17"/><circle cx="430" cy="48" r="17"/></g>
+    <g fill="#fff" font-size="12" font-weight="700"><text x="70" y="52">bd</text><text x="190" y="52">bd</text><text x="310" y="52">bd</text><text x="430" y="52">bd</text></g>
+    <text x="500" y="52" font-size="11" fill="#8a2d6b" text-anchor="start">le kick</text>
+  </g>
+  <!-- flèches kick -> dip -->
+  <g stroke="#c0392b" stroke-width="2" stroke-dasharray="3 3" fill="none">
+    <path d="M70 66 L70 120"/><path d="M190 66 L190 120"/><path d="M310 66 L310 120"/><path d="M430 66 L430 120"/>
+  </g>
+  <g fill="#c0392b" font-size="13" text-anchor="middle">
+    <text x="70" y="112">↓</text><text x="190" y="112">↓</text><text x="310" y="112">↓</text><text x="430" y="112">↓</text>
+  </g>
+  <!-- enveloppe de volume de la basse -->
+  <path d="M50 128 L70 128 L70 178 L190 130 L190 178 L310 130 L310 178 L430 130 L430 178 L500 134"
+        fill="none" stroke="#1f7a45" stroke-width="2.5"/>
+  <path d="M50 128 L70 128 L70 178 L190 130 L190 178 L310 130 L310 178 L430 130 L430 178 L500 134 L500 195 L50 195 Z"
+        fill="#1f7a45" opacity="0.10"/>
+  <g font-family="Segoe UI" font-size="11" fill="#1f7a45">
+    <text x="500" y="128" text-anchor="start">basse</text>
+    <text x="52" y="124">fort 🔊</text><text x="52" y="190">faible 🔈</text>
+  </g>
+</svg>
+<figcaption>kick <code>.duckorbit(2)</code> + basse <code>.orbit(2)</code> → la basse « respire » au rythme du kick.</figcaption>
+</figure>
+
+<!-- ============================================================ PARTIE 5 -->
+<div class="part"><div class="n">Partie 5</div><h2 id="p5">🌊 Faire bouger la musique toute seule</h2></div>
+<p>Pour que ça <b>évolue</b> en live (comme dj_dave), il y a 2 super-pouvoirs : les <b>signaux</b> (des vagues automatiques) et le <b>hasard</b>.</p>
+
+<h3>🌊 Les signaux : des vagues qui bougent les réglages</h3>
+<p>Au lieu d'un chiffre fixe, mets une <b>vague</b> : <code>sine</code> (douce), <code>saw</code> (monte puis retombe), <code>perlin</code> (au hasard tout doux), <code>rand</code> (au hasard). <code>.range(petit, grand)</code> dit entre quoi et quoi elle bouge.</p>
+<div class="cmd">note("c2*8").sound("sawtooth").lpf(sine.range(300, 2000).slow(4))</div>
+<div class="expl">🔍 Le filtre <b>monte et descend tout seul</b> en 4 tours → ça « waaaah » comme dans la dance ! 🌈</div>
+<figure>
+<svg viewBox="0 0 540 190" role="img" aria-label="le signal sine fait monter et descendre la valeur du filtre">
+  <text x="270" y="16" font-family="Segoe UI" font-size="13" font-weight="700" fill="#8a2d6b" text-anchor="middle">sine.range(300, 2000).slow(4) — le filtre suit la vague 🌊</text>
+  <!-- axe du filtre -->
+  <line x1="55" y1="40" x2="55" y2="150" stroke="#13868a" stroke-width="2"/>
+  <g font-family="Segoe UI" font-size="11" fill="#13868a" text-anchor="end">
+    <text x="50" y="44">2000 🔆</text><text x="50" y="154">300 🌫️</text>
+  </g>
+  <line x1="55" y1="44" x2="505" y2="44" stroke="#cfe6e7" stroke-width="1" stroke-dasharray="4 4"/>
+  <line x1="55" y1="148" x2="505" y2="148" stroke="#cfe6e7" stroke-width="1" stroke-dasharray="4 4"/>
+  <!-- la vague sine : 2 allers-retours -->
+  <path d="M60 96 C95 44 135 44 170 96 C205 148 245 148 280 96 C315 44 355 44 390 96 C425 148 465 148 500 96"
+        fill="none" stroke="#13868a" stroke-width="3"/>
+  <!-- points repères -->
+  <circle cx="152" cy="48" r="4" fill="#0f7a45"/><text x="152" y="38" font-family="Segoe UI" font-size="10" fill="#0f7a45" text-anchor="middle">brillant</text>
+  <circle cx="262" cy="144" r="4" fill="#a85c00"/><text x="262" y="166" font-family="Segoe UI" font-size="10" fill="#a85c00" text-anchor="middle">sourd</text>
+  <text x="500" y="184" font-family="Segoe UI" font-size="10.5" fill="#888" text-anchor="end">.slow(8) = vague plus lente · .range(petit, grand) = entre quoi et quoi</text>
+</svg>
+<figcaption>Une <b>vague</b> à la place d'un chiffre : le réglage bouge tout seul, en boucle.</figcaption>
+</figure>
+<table>
+<tr><td><code>.gain(sine.range(.4,1).slow(8))</code></td><td>le volume respire lentement</td></tr>
+<tr><td><code>.pan(sine.range(0,1).slow(3))</code></td><td>le son voyage d'une oreille à l'autre</td></tr>
+<tr><td><code>.lpf(perlin.range(400,3000))</code></td><td>le filtre bouge « au hasard doux »</td></tr>
+<tr><td><code>.speed(saw.range(1,2))</code></td><td>la hauteur glisse vers le haut</td></tr>
+</table>
+<div class="tip">🐭 <b>Joue avec la SOURIS en live !</b> <code>mousex</code> et <code>mousey</code> suivent ta souris :
+<div class="cmd">note("c2*8").sound("sawtooth").lpf(mousex.range(200,3000))</div>
+Bouge la souris → le filtre suit. Tu es aux commandes ! 🎛️</div>
+
+<h3>🎲 Le hasard : surprises &amp; variations</h3>
+<table>
+<tr><td><code>.degrade()</code></td><td>enlève des sons au hasard (plus aéré)</td><td><code>sound("hh*16").degrade()</code></td></tr>
+<tr><td><code>.sometimes(x=&gt;x.speed(2))</code></td><td>de temps en temps, fais X</td><td><code>sound("hh*8").sometimes(x=&gt;x.crush(4))</code></td></tr>
+<tr><td><code>.often(…)</code> / <code>.rarely(…)</code></td><td>souvent / rarement</td><td><code>sound("cp").rarely(x=&gt;x.fast(2))</code></td></tr>
+</table>
+
+<h3>🔁 Transformer la boucle</h3>
+<table>
+<tr><td><code>.rev()</code></td><td>à l'envers</td><td><code>.iter(4)</code></td><td>décale d'un cran chaque tour</td></tr>
+<tr><td><code>.palindrome()</code></td><td>aller-retour</td><td><code>.jux(rev)</code></td><td>l'envers dans l'autre oreille (effet large)</td></tr>
+<tr><td><code>.every(4, x=&gt;x.fast(2))</code></td><td>tous les 4 tours, fais X</td><td><code>.off(.25, x=&gt;x.add(7))</code></td><td>une copie en écho, plus aiguë</td></tr>
+</table>
+<div class="cmd">n("0 2 4 6").scale("C:minor").sound("triangle").jux(rev).room(.5)</div>
+<div class="exo"><b class="t">🎯 Exo —</b> ajoute <code>.every(4, x=&gt;x.fast(2))</code> à la fin → tous les 4 tours, ça s'emballe ! 🚀</div>
+
+<!-- ============================================================ PARTIE 6 -->
+<div class="part"><div class="n">Partie 6</div><h2 id="p6">🎧 Jouer en LIVE comme un·e DJ</h2></div>
+
+<h3>Le secret : une ligne = une piste, avec <code>$:</code></h3>
+<p>Commence chaque ligne par <code>$:</code> et elle devient une <b>piste à part</b>. Tu empiles batterie + basse + mélodie, et tu en <b>rajoutes / enlèves en direct</b> !</p>
+<pre class="code">$: sound("bd*4").bank("RolandTR909")
+$: sound("~ cp")
+$: sound("hh*8").gain(.5)
+$: note("c2 c2 g2 a2").sound("sawtooth").lpf(700)</pre>
+<span class="run">▶ Ctrl+Entrée</span> → 4 pistes ensemble. 🎉
+<figure>
+<svg viewBox="0 0 540 232" role="img" aria-label="chaque ligne dollar-deux-points est une piste, toutes jouent empilées en même temps">
+  <text x="270" y="15" font-family="Segoe UI" font-size="13" font-weight="700" fill="#8a2d6b" text-anchor="middle">Chaque ligne <tspan font-family="Cascadia Code,monospace">$:</tspan> = une piste · elles jouent EMPILÉES, en même temps 🎚️</text>
+  <!-- piste 1 : batterie bd*4 -->
+  <rect x="12" y="28" width="478" height="40" rx="9" fill="#f7d6ea" stroke="#8a2d6b" stroke-width="2"/>
+  <text x="22" y="53" font-family="Cascadia Code,monospace" font-size="13" font-weight="700" fill="#8a2d6b">$:</text>
+  <text x="48" y="53" font-family="Segoe UI" font-size="13" fill="#8a2d6b">🥁 bd*4</text>
+  <g fill="#8a2d6b"><circle cx="200" cy="48" r="7"/><circle cx="290" cy="48" r="7"/><circle cx="380" cy="48" r="7"/><circle cx="470" cy="48" r="7"/></g>
+  <!-- piste 2 : clap ~ cp -->
+  <rect x="12" y="76" width="478" height="40" rx="9" fill="#fde2c4" stroke="#a85c00" stroke-width="2"/>
+  <text x="22" y="101" font-family="Cascadia Code,monospace" font-size="13" font-weight="700" fill="#a85c00">$:</text>
+  <text x="48" y="101" font-family="Segoe UI" font-size="13" fill="#a85c00">👏 ~ cp</text>
+  <g fill="#a85c00"><circle cx="335" cy="96" r="7"/></g>
+  <text x="200" y="100" font-family="Segoe UI" font-size="12" fill="#caa06a">(silence)</text>
+  <!-- piste 3 : charleston hh*8 -->
+  <rect x="12" y="124" width="478" height="40" rx="9" fill="#dbeefb" stroke="#1f5fb0" stroke-width="2"/>
+  <text x="22" y="149" font-family="Cascadia Code,monospace" font-size="13" font-weight="700" fill="#1f5fb0">$:</text>
+  <text x="48" y="149" font-family="Segoe UI" font-size="13" fill="#1f5fb0">🎩 hh*8</text>
+  <g fill="#1f5fb0"><circle cx="170" cy="144" r="4.5"/><circle cx="213" cy="144" r="4.5"/><circle cx="256" cy="144" r="4.5"/><circle cx="299" cy="144" r="4.5"/><circle cx="342" cy="144" r="4.5"/><circle cx="385" cy="144" r="4.5"/><circle cx="428" cy="144" r="4.5"/><circle cx="471" cy="144" r="4.5"/></g>
+  <!-- piste 4 : basse / synthé -->
+  <rect x="12" y="172" width="478" height="40" rx="9" fill="#d9f0e2" stroke="#0f7a45" stroke-width="2"/>
+  <text x="22" y="197" font-family="Cascadia Code,monospace" font-size="13" font-weight="700" fill="#0f7a45">$:</text>
+  <text x="48" y="197" font-family="Segoe UI" font-size="13" fill="#0f7a45">🎹 basse</text>
+  <g fill="#0f7a45"><rect x="178" y="190" width="44" height="14" rx="3"/><rect x="268" y="190" width="44" height="14" rx="3"/><rect x="358" y="190" width="44" height="14" rx="3"/><rect x="448" y="190" width="32" height="14" rx="3"/></g>
+  <!-- accolade "en même temps" -->
+  <path d="M500 30 q10 0 10 10 v52 q0 10 10 10 q-10 0 -10 10 v52 q0 10 -10 10" fill="none" stroke="#8a2d6b" stroke-width="2"/>
+  <text x="516" y="118" font-family="Segoe UI" font-size="12" font-weight="700" fill="#8a2d6b" text-anchor="middle" transform="rotate(90 516 118)">en même temps</text>
+  <!-- repère de temps -->
+  <text x="270" y="228" font-family="Segoe UI" font-size="11" fill="#888" text-anchor="middle">← un même cycle (1 tour) partagé par toutes les pistes →</text>
+</svg>
+<figcaption>Ajoute/retire des lignes <code>$:</code> en direct (ou mets <code>//</code> devant pour couper une piste).</figcaption>
+</figure>
+
+<h3>🎚️ Construire un morceau en live (la « montée »)</h3>
+<p>Les vrais DJ ajoutent les pistes <b>une par une</b>. Pour <b>couper</b> une piste sans l'effacer : mets <code>//</code> devant (ça la met en « commentaire » = muet). Enlève les <code>//</code> pour la <b>rallumer</b> 🔊.</p>
+<pre class="code">$: sound("bd*4").bank("RolandTR909")
+// $: sound("hh*8").gain(.5)        <i># muette : enlève // pour la lancer</i>
+// $: note("c2*8").sound("sawtooth").lpf(sine.range(300,2000).slow(4))</pre>
+<div class="tip"><b>La recette du live :</b> ① lance la grosse caisse. ② Ctrl+Entrée. ③ enlève les <code>//</code> d'une piste. ④ Ctrl+Entrée. ⑤ change un réglage. ⑥ Ctrl+Entrée… et tu construis ton morceau <b>en direct</b> devant les gens ! 🎤</div>
+
+<h3>🪩 Le « drop » electro</h3>
+<p>Fais monter la tension puis lâche tout : coupe la batterie quelques tours (filtre qui monte), puis relance-la d'un coup.</p>
+<pre class="code">$: sound("bd*4").bank("RolandTR909")
+$: note("c2*16").sound("sawtooth")
+     .lpf(saw.range(200, 4000).slow(8))   <i># le filtre MONTE pendant 8 tours…</i>
+     .room(.3)</pre>
+<div class="exo"><b class="t">🎯 Défi DJ —</b> garde 3 pistes, et toutes les 15 secondes : change <b>une</b> chose (le bank, une note, un effet, une vague). Ne t'arrête jamais — c'est ça, un live ! 🎧</div>
+
+<!-- ============================================================ PARTIE 7 -->
+<div class="pagebreak"></div>
+<div class="part"><div class="n">Partie 7</div><h2 id="p7">👁️ TOUS les visuels (teste-les tous !)</h2></div>
+<p>Strudel peut <b>dessiner</b> ta musique pendant qu'elle joue. On colle un visuel à la fin d'une ligne. Astuce : les visuels qui
+commencent par <b>un tiret bas</b> <code>_</code> se dessinent <b>juste sous la ligne</b> (tu peux en mettre plein) ; sans le tiret, ça remplit le <b>fond</b> de l'écran.</p>
+
+<div class="defi">
+<div class="step"><b class="n">1</b> 🌈 <b>Colorier</b> les notes qui s'allument quand elles jouent :
+<div class="cmd">note("c e g e a g").color("cyan magenta")</div>
+<span class="see">👁️ Regarde</span> le code : les notes <b>clignotent en couleur</b> en rythme !</div>
+
+<div class="step"><b class="n">2</b> 〰️ <b>L'oscilloscope</b> <code>_scope()</code> — la forme de l'onde, comme une corde qui vibre :
+<div class="cmd">sound("bd*2, hh*8")._scope()</div></div>
+
+<div class="step"><b class="n">3</b> 📊 <b>Le spectre</b> <code>_spectrum()</code> — des barres : à gauche les graves, à droite les aigus :
+<div class="cmd">note("c2 e3 g4").sound("sawtooth")._spectrum()</div></div>
+
+<div class="step"><b class="n">4</b> 🎹 <b>Le piano-roll</b> <code>_pianoroll()</code> — les notes défilent comme dans un jeu de rythme :
+<div class="cmd">n("0 2 4 6 4 2").scale("C:minor").sound("piano")._pianoroll()</div></div>
+
+<div class="step"><b class="n">5</b> 🟪 <b>La carte perforée</b> <code>_punchcard()</code> — des petites cases qui s'allument :
+<div class="cmd">sound("bd sd, hh*8")._punchcard()</div></div>
+
+<div class="step"><b class="n">6</b> 🌀 <b>La spirale</b> <code>_spiral()</code> — le temps qui tourne en escargot :
+<div class="cmd">sound("bd(3,8), hh*8")._spiral()</div></div>
+
+<div class="step"><b class="n">7</b> 🎯 <b>La roue des notes</b> <code>_pitchwheel()</code> — un cercle qui montre les notes :
+<div class="cmd">n("0 2 4 6 7").scale("C:minor")._pitchwheel()</div></div>
+</div>
+
+<div class="tip"><b>Tout afficher d'un coup :</b> écris <code>all(x=&gt;x._punchcard())</code> sur une ligne séparée → <b>toutes</b> tes pistes auront un visuel. 🪄</div>
+
+<h3>🎆 HYDRA : des visuels de VJ (le grand truc !)</h3>
+<p>Hydra fait de la <b>vidéo psychédélique</b> qui <b>réagit à ta musique</b>. C'est de la magie à copier-coller. Mets <code>await initHydra()</code> tout en haut, puis une recette :</p>
+<pre class="code">await initHydra()
+osc(20, 0.1, 1.2).rotate(0.3).kaleid(5).out(o0)
+
+$: sound("bd*4, hh*8").bank("RolandTR909")</pre>
+<span class="see">👁️</span> → des vagues colorées en étoile par-dessus la musique. Change les nombres : chacun donne un visuel différent !
+
+<h4>🔊 Le faire <b>réagir au son</b></h4>
+<p>Ajoute <code>{detectAudio:true}</code> : le visuel <b>bouge avec les graves</b> (<code>a.fft[0]</code> = la force des basses) :</p>
+<pre class="code">await initHydra({detectAudio:true})
+shape(6).scale(() =&gt; 1 + a.fft[0] * 2).color(1,0.4,0.9).out(o0)
+
+$: sound("bd*4").bank("RolandTR909")
+$: note("c2*8").sound("sawtooth").lpf(800)</pre>
+<span class="see">👁️</span> → la forme <b>gonfle à chaque grosse caisse</b> ! 🫀
+<div class="try">✦ <b>Recettes Hydra à essayer</b> (remplace la ligne après <code>initHydra</code>) :
+<div class="cmd">osc(10,0.2,2).modulate(noise(3)).out(o0)
+noise(4).color(0.9,0.2,0.6).out(o0)
+voronoi(8).rotate(0.2).kaleid(6).out(o0)</div></div>
+<div class="warn"><b>Hydra rame un peu ?</b> C'est normal, ça demande du travail à l'ordi. Si ça saccade, enlève la ligne Hydra (ou mets moins de <code>kaleid</code>/<code>modulate</code>). La musique, elle, ne s'arrête jamais. 🙂</div>
+
+<!-- ============================================================ PARTIE 8 -->
+<div class="part"><div class="n">Partie 8</div><h2 id="p8">🚀 Mini-projets electro à copier</h2></div>
+<p>Recopie, lance, puis <b>change des trucs</b>. Chaque projet tient en quelques lignes.</p>
+
+<div class="defi">
+<h3>🪩 1. Techno 909</h3>
+<pre class="code">$: sound("bd*4").bank("RolandTR909").duckorbit(2)
+$: sound("~ cp").room(.3)
+$: sound("hh*8").gain(.5).pan(sine.range(0,1).slow(4))
+$: note("c2*8").sound("sawtooth").lpf(sine.range(400,2200).slow(8)).orbit(2)</pre>
+<div class="small muted">→ Change <code>c2</code> en <code>f2</code> ou <code>a1</code> pour une autre basse.</div>
+</div>
+
+<div class="defi">
+<h3>🏠 2. House qui groove</h3>
+<pre class="code">$: sound("bd*4, ~ cp").bank("RolandTR808")
+$: sound("hh*8").gain(.5).sometimes(x=&gt;x.speed(2))
+$: n("0 2 4 7").chord("&lt;C Am F G&gt;").voicing().sound("sawtooth")
+     .lpf(900).attack(.1).room(.4)</pre>
+</div>
+
+<div class="defi">
+<h3>🌌 3. Ambient tout doux</h3>
+<pre class="code">$: note("&lt;c e g b&gt;").sound("triangle").attack(1).release(2)
+     .room(1).lpf(1500).slow(2)
+$: sound("brown").gain(.2)        <i># un petit vent</i></pre>
+</div>
+
+<div class="defi">
+<h3>👾 4. Chiptune (jeu vidéo)</h3>
+<pre class="code">$: sound("bd sd").fast(2)
+$: n("0 0 7 7 5 5 4").scale("C:major").sound("square").fast(2)
+$: n("0 4").scale("C2:major").sound("square").slow(2)   <i># la basse, une octave plus bas</i></pre>
+</div>
+
+<div class="defi">
+<h3>🎤 5. Le jam « dj_dave » qui évolue tout seul</h3>
+<pre class="code">$: sound("bd(3,8)").bank("RolandTR909").duckorbit(2)
+$: sound("hh*16").gain(perlin.range(.2,.7)).degrade()
+$: sound("~ cp").room(.4).sometimes(x=&gt;x.delay(.5))
+$: n("0 3 5 7").scale("C:minor").sound("sawtooth")
+     .lpf(sine.range(300,3000).slow(16)).orbit(2).jux(rev)</pre>
+<div class="small muted">→ Laisse tourner et change <b>une</b> chose toutes les 15 s. C'est un vrai live ! 🎧</div>
+</div>
+
+<h2>💾 Garder mes morceaux</h2>
+<p>Tu as trouvé une boucle géniale ? Garde-la pour la retrouver plus tard :</p>
+<ul>
+<li>📋 <b>Le plus simple :</b> sélectionne ton code, copie-le, et colle-le dans un fichier avec <code>micro mes-morceaux.txt</code>
+(dans la console — tu sais déjà faire ! 🐧). La prochaine fois, tu le recolles dans Strudel.</li>
+<li>🔗 Strudel a aussi un menu <b>« share »</b> qui fabrique un lien : demande à papa de le garder pour toi.</li>
+</ul>
+<div class="tip">Garde un fichier <code>mes-best.txt</code> avec tes <b>meilleures lignes</b> — c'est ta collection de DJ ! 🎧</div>
+
+<!-- ============================================================ FICHES -->
+<div class="pagebreak"></div>
+<h1 id="p9">📇 Les grandes fiches — à garder sous les yeux</h1>
+<p class="lead">Voilà ta <b>boîte à outils</b> de DJ-codeuse. Garde ces pages ouvertes pendant que tu joues : chaque fiche
+a sa <b>couleur</b>. Tu n'as pas besoin de tout connaître — pioche, essaie, écoute ! 🎛️</p>
+
+<div class="fiche f-purple"><div class="hd">⭐ FICHE 0 — Les bases &amp; les touches</div><div class="bd">
+<table>
+<tr><td><span class="kbd">Ctrl</span>+<span class="kbd">Entrée</span></td><td>jouer / mettre à jour</td><td><span class="kbd">Ctrl</span>+<span class="kbd">.</span></td><td>tout arrêter</td></tr>
+<tr><td><code>sound("…")</code> ou <code>s("…")</code></td><td>jouer des sons</td><td><code>note("…")</code></td><td>jouer des notes</td></tr>
+<tr><td><code>$:</code> en début de ligne</td><td>= une piste (empile-en plein !)</td><td><code>//</code> en début de ligne</td><td>coupe la ligne (muet)</td></tr>
+<tr><td><code>setcps(.6)</code></td><td>vitesse générale (plus grand = plus vite)</td><td><code>.slow(2)</code> / <code>.fast(2)</code></td><td>plus lent / plus vite</td></tr>
+</table>
+<b>Signes du rythme dans les <code>" "</code> :</b>
+<table>
+<tr><td><code>espace</code></td><td>sons à la suite</td><td><code>~</code></td><td>silence</td><td><code>*</code></td><td>répéter vite (<code>hh*8</code>)</td></tr>
+<tr><td><code>[ ]</code></td><td>serrer dans 1 part</td><td><code>&lt; &gt;</code></td><td>change chaque tour</td><td><code>,</code></td><td>en même temps</td></tr>
+<tr><td><code>!</code></td><td>répéter (<code>bd!3</code>)</td><td><code>(3,8)</code></td><td>rythme d'Euclide</td><td><code>@</code></td><td>durer + longtemps (<code>bd@3</code>)</td></tr>
+</table>
+</div></div>
+
+<div class="fiche f-purple"><div class="hd">🎛️ FICHE 1 — Sons &amp; instruments</div><div class="bd">
+<b>Batterie :</b> <code>bd</code> <code>sd</code> <code>hh</code> <code>oh</code> <code>cp</code> <code>rim</code> <code>lt</code> <code>mt</code> <code>ht</code> <code>rd</code> <code>cr</code>
+<table>
+<tr><td><code>.bank("RolandTR909")</code></td><td>boîte techno · aussi <code>RolandTR808</code> (hip-hop), <code>RolandTR707</code>, <code>AkaiLinn</code>…</td></tr>
+<tr><td><code>bd:3</code></td><td>une variante du son (0,1,2,3…)</td></tr>
+</table>
+<b>Synthés</b> (dans <code>.sound("…")</code>) :
+<table>
+<tr><td><code>sawtooth</code></td><td>gratte (electro)</td><td><code>square</code></td><td>jeu vidéo</td><td><code>triangle</code></td><td>doux</td></tr>
+<tr><td><code>sine</code></td><td>rond/flûte</td><td><code>piano</code></td><td>piano</td><td><code>white pink brown</code></td><td>bruits</td></tr>
+</table>
+<div class="small muted">…et des centaines d'autres dans le menu « sounds » en haut.</div>
+</div></div>
+
+<div class="fiche f-pink"><div class="hd">🎵 FICHE 2 — Mélodie, gammes &amp; accords</div><div class="bd">
+<table>
+<tr><td><code>c d e f g a b</code></td><td>do ré mi fa sol la si · <code>c2</code> grave, <code>c5</code> aigu · <code>#</code> monte, <code>b</code> descend</td></tr>
+<tr><td><code>n("0 2 4").scale("C:minor")</code></td><td>chiffres → notes toujours justes (gamme)</td></tr>
+<tr><td>gammes utiles</td><td><code>C:major</code> (joyeux) · <code>C:minor</code> (sombre) · <code>C:minor:pentatonic</code></td></tr>
+<tr><td><code>.chord("&lt;C Am F G&gt;").voicing()</code></td><td>une suite d'accords bien arrangés</td></tr>
+<tr><td><code>.add(note(12))</code> / <code>.add(note(-12))</code></td><td>monter / descendre d'une octave</td></tr>
+</table>
+</div></div>
+
+<div class="fiche f-orange"><div class="hd">✨ FICHE 3 — Les effets</div><div class="bd">
+<figure style="margin:8px 0 4px">
+<svg viewBox="0 0 540 150" role="img" aria-label="la chaîne d'effets : son puis filtre puis écho puis sortie">
+  <!-- BOITE 1 : SON -->
+  <rect x="10" y="16" width="108" height="64" rx="11" fill="#f7d6ea" stroke="#8a2d6b" stroke-width="2"/>
+  <text x="64" y="50" font-size="23" text-anchor="middle">🎹</text>
+  <text x="64" y="71" font-family="Segoe UI" font-size="12.5" font-weight="700" fill="#8a2d6b" text-anchor="middle">SON</text>
+  <text x="64" y="104" font-family="Cascadia Code,monospace" font-size="10.5" fill="#8a2d6b" text-anchor="middle">sound("saw")</text>
+  <!-- BOITE 2 : FILTRE -->
+  <rect x="148" y="16" width="108" height="64" rx="11" fill="#fde2c4" stroke="#d2731a" stroke-width="2"/>
+  <text x="202" y="50" font-size="23" text-anchor="middle">🎚️</text>
+  <text x="202" y="71" font-family="Segoe UI" font-size="12.5" font-weight="700" fill="#a85c00" text-anchor="middle">FILTRE</text>
+  <text x="202" y="104" font-family="Cascadia Code,monospace" font-size="10.5" fill="#a85c00" text-anchor="middle">.lpf(800)</text>
+  <!-- BOITE 3 : ÉCHO -->
+  <rect x="286" y="16" width="108" height="64" rx="11" fill="#dbeefb" stroke="#1f5fb0" stroke-width="2"/>
+  <text x="340" y="50" font-size="23" text-anchor="middle">🏛️</text>
+  <text x="340" y="71" font-family="Segoe UI" font-size="12.5" font-weight="700" fill="#1f5fb0" text-anchor="middle">ÉCHO</text>
+  <text x="340" y="104" font-family="Cascadia Code,monospace" font-size="10" fill="#1f5fb0" text-anchor="middle">.room(1).delay(.4)</text>
+  <!-- BOITE 4 : SORTIE -->
+  <rect x="424" y="16" width="108" height="64" rx="11" fill="#d9f0e2" stroke="#0f7a45" stroke-width="2"/>
+  <text x="478" y="51" font-size="23" text-anchor="middle">🔊</text>
+  <text x="478" y="71" font-family="Segoe UI" font-size="12.5" font-weight="700" fill="#0f7a45" text-anchor="middle">SORTIE</text>
+  <text x="478" y="104" font-family="Segoe UI" font-size="10.5" fill="#0f7a45" text-anchor="middle">tu entends !</text>
+  <!-- flèches -->
+  <g stroke="#8a2d6b" stroke-width="3" fill="#8a2d6b">
+    <line x1="120" y1="48" x2="142" y2="48"/><path d="M142 48 l-9 -5 l0 10 z"/>
+    <line x1="258" y1="48" x2="280" y2="48"/><path d="M280 48 l-9 -5 l0 10 z"/>
+    <line x1="396" y1="48" x2="418" y2="48"/><path d="M418 48 l-9 -5 l0 10 z"/>
+  </g>
+  <text x="270" y="134" font-family="Segoe UI" font-size="11.5" fill="#a85c00" text-anchor="middle">L'ordre : son → filtre → écho → sortie · <tspan font-family="Cascadia Code,monospace">sound("saw").lpf(800).room(1).delay(.4)</tspan></text>
+</svg>
+</figure>
+<table>
+<tr><td><code>.lpf(500)</code></td><td>🌫️ sourd (petit=+sourd)</td><td><code>.lpq(10)</code></td><td>💧 « miaou » résonnant</td></tr>
+<tr><td><code>.hpf(2000)</code></td><td>🪶 enlève les graves</td><td><code>.vowel("a e i o")</code></td><td>🗣️ fait parler</td></tr>
+<tr><td><code>.room(1)</code></td><td>🏛️ écho de salle</td><td><code>.delay(.5)</code></td><td>🔁 ho..ho..ho</td></tr>
+<tr><td><code>.distort(3)</code></td><td>🔥 sature/grogne</td><td><code>.crush(4)</code></td><td>👾 son 8-bit</td></tr>
+<tr><td><code>.gain(.5)</code></td><td>🔉 volume</td><td><code>.pan("0 1")</code></td><td>↔️ gauche/droite</td></tr>
+<tr><td><code>.attack(.5)</code></td><td>📈 apparaît doucement</td><td><code>.release(1)</code></td><td>📉 s'éteint doucement</td></tr>
+<tr><td><code>.speed(2)</code></td><td>🐿️ + aigu/rapide (négatif = à l'envers)</td><td><code>.duckorbit(2)</code> + <code>.orbit(2)</code></td><td>💥 le pompage (sidechain)</td></tr>
+</table>
+</div></div>
+
+<div class="fiche f-green"><div class="hd">🔁 FICHE 4 — Transformer &amp; improviser (live)</div><div class="bd">
+<table>
+<tr><td><code>.rev()</code></td><td>à l'envers</td><td><code>.palindrome()</code></td><td>aller-retour</td></tr>
+<tr><td><code>.iter(4)</code></td><td>décale d'un cran/tour</td><td><code>.ply(2)</code></td><td>répète chaque son</td></tr>
+<tr><td><code>.jux(rev)</code></td><td>l'envers dans 1 oreille (large)</td><td><code>.off(.25, x=&gt;x.add(7))</code></td><td>copie en écho + aiguë</td></tr>
+<tr><td><code>.every(4, x=&gt;x.fast(2))</code></td><td>tous les 4 tours, fais X</td><td><code>.echo(3,.125,.7)</code></td><td>échos qui s'éteignent</td></tr>
+<tr><td><code>.degrade()</code></td><td>enlève des sons au hasard</td><td><code>.sometimes(x=&gt;x.crush(4))</code></td><td>parfois, fais X</td></tr>
+<tr><td><code>.often(…)</code> · <code>.rarely(…)</code></td><td>souvent · rarement</td><td><code>.swing(4)</code></td><td>balance shuffle</td></tr>
+</table>
+<div class="small muted">Les <code>x=&gt;x.…</code> veulent dire « fais ça au son ». Copie-les tels quels !</div>
+</div></div>
+
+<div class="fiche f-teal"><div class="hd">🌊 FICHE 5 — Les signaux (ça bouge tout seul)</div><div class="bd">
+<p class="small">Mets une <b>vague</b> à la place d'un chiffre : <code>réglage(vague.range(petit,grand).slow(n))</code></p>
+<table>
+<tr><td><code>sine</code></td><td>douce ↗↘</td><td><code>saw</code></td><td>monte ↗ puis retombe</td><td><code>tri</code></td><td>triangle</td></tr>
+<tr><td><code>square</code></td><td>saute (0/1)</td><td><code>perlin</code></td><td>hasard tout doux</td><td><code>rand</code></td><td>hasard</td></tr>
+<tr><td><code>mousex</code> / <code>mousey</code></td><td>🐭 suit ta souris (live !)</td><td><code>irand(8)</code></td><td>chiffre au hasard 0–7</td></tr>
+</table>
+<table>
+<tr><td><code>.range(200, 2000)</code></td><td>entre quoi et quoi ça bouge</td><td><code>.slow(8)</code></td><td>plus lent = plus doux</td><td><code>.segment(8)</code></td><td>par petits sauts</td></tr>
+</table>
+<b>Exemples :</b> <code>.lpf(sine.range(300,2500).slow(4))</code> · <code>.gain(perlin.range(.4,1))</code> · <code>.pan(mousex)</code>
+</div></div>
+
+<div class="fiche f-magenta"><div class="hd">👁️ FICHE 6 — Les visuels (<code>_</code> = sous la ligne)</div><div class="bd">
+<table>
+<tr><td><code>.color("cyan magenta")</code></td><td>colorie les notes qui s'allument</td></tr>
+<tr><td><code>._scope()</code></td><td>〰️ l'onde qui vibre</td><td><code>._spectrum()</code></td><td>📊 graves → aigus</td></tr>
+<tr><td><code>._pianoroll()</code></td><td>🎹 notes qui défilent</td><td><code>._punchcard()</code></td><td>🟪 cases qui s'allument</td></tr>
+<tr><td><code>._spiral()</code></td><td>🌀 le temps en escargot</td><td><code>._pitchwheel()</code></td><td>🎯 roue des notes</td></tr>
+<tr><td><code>all(x=&gt;x._punchcard())</code></td><td>met un visuel sur TOUTES les pistes</td></tr>
+</table>
+<b>🎆 Hydra (visuels de VJ)</b> — 1ʳᵉ ligne : <code>await initHydra()</code> &nbsp;(ou <code>await initHydra({detectAudio:true})</code> pour réagir au son)
+<table>
+<tr><td><code>osc(20,.1,1.2).rotate(.3).kaleid(5).out(o0)</code></td><td>vagues en étoile</td></tr>
+<tr><td><code>noise(4).color(.9,.2,.6).out(o0)</code></td><td>nuages colorés</td></tr>
+<tr><td><code>voronoi(8).kaleid(6).out(o0)</code></td><td>vitrail animé</td></tr>
+<tr><td><code>shape(6).scale(()=&gt;1+a.fft[0]*2).out(o0)</code></td><td>gonfle avec les graves 🫀</td></tr>
+</table>
+</div></div>
+
+<div class="fiche f-gold"><div class="hd">🎧 FICHE 7 — Recettes express de live</div><div class="bd">
+<table>
+<tr><td><b>Le squelette</b></td><td><code>$: batterie</code> &nbsp;/&nbsp; <code>$: basse</code> &nbsp;/&nbsp; <code>$: mélodie</code> (chacun sa ligne)</td></tr>
+<tr><td><b>Allumer/éteindre</b></td><td>mets/enlève <code>//</code> devant une ligne, puis Ctrl+Entrée</td></tr>
+<tr><td><b>Groove qui marche</b></td><td><code>sound("bd(3,8), hh*8, ~ cp")</code></td></tr>
+<tr><td><b>Le pompage</b></td><td>kick <code>.duckorbit(2)</code> + basse <code>.orbit(2)</code></td></tr>
+<tr><td><b>La montée / le drop</b></td><td><code>.lpf(saw.range(200,4000).slow(8))</code> sur la basse</td></tr>
+<tr><td><b>Faire évoluer</b></td><td>une vague (<code>sine</code>/<code>perlin</code>) sur <code>.lpf</code>, <code>.gain</code> ou <code>.pan</code></td></tr>
+<tr><td><b>La règle d'or</b></td><td>change <b>1</b> chose · Ctrl+Entrée · écoute · garde si tu aimes 🌱</td></tr>
+</table>
+</div></div>
+
+<p class="footer">🎵 <b>Fin du Livre 1 — la Musique.</b> Bravo ! Maintenant, tourne la page : on passe au <b>GRAPHISME</b> ! 👉🎨</p>
+
+<!-- ############################################################ LIVRE 2 -->
+<div class="pagebreak"></div>
+<section class="cover" style="background:linear-gradient(160deg,#1f6f8b 0%,#16486b 50%,#0a2233 100%)"><div class="frame">
+  <div class="peng">🎨🖥️</div>
+  <div class="small2">Livre 2</div>
+  <div class="name" style="font-size:54px">Le Graphisme</div>
+  <div class="sub">Afficher des choses à l'écran et les <b>faire bouger</b> — la <b>demoscene</b> ! 🌌✨</div>
+  <div class="stars">★ ★ ★ ✦ ☆</div>
+  <div class="badge">Artiste-codeuse · pixels &amp; lumière</div>
+</div></section>
+
+<h1 style="color:#13868a">🎨 C'est quoi la « demoscene » ?</h1>
+<p class="lead">La <b>demoscene</b>, c'est un art : des gens font bouger l'ordinateur au maximum pour fabriquer des
+<b>animations magiques</b> (des étoiles, des vagues de couleur, du feu…) — souvent avec de la <b>musique</b> par-dessus.
+Une « demo », c'est ça : un petit programme qui s'affiche tout seul, comme un <b>feu d'artifice</b> de pixels. 🎆
+Dans ce Livre 2, tu vas en fabriquer, <b>du plus simple au plus fou</b>.</p>
+
+<h2 style="color:#13868a">🛠️ Notre outil : <code>pygame</code> (du Python pour dessiner)</h2>
+<p>On code en <b>Python</b> (que tu connais déjà 🐍) avec <b>pygame</b>, qui ouvre une fenêtre et dessine dedans.
+On travaille comme pour tes jeux : <b>écris → lance → regarde → change → relance.</b></p>
+<table>
+<tr><td>✍️ <b>Écrire / modifier</b></td><td><code>micro ma-demo.py</code> &nbsp;(Ctrl+S enregistrer, Ctrl+Q quitter)</td></tr>
+<tr><td>▶️ <b>Lancer</b> (plein écran)</td><td><code>cage -- python3 ma-demo.py</code></td></tr>
+<tr><td>🚪 <b>Fermer</b> la fenêtre</td><td>la touche <span class="kbd">Échap</span> (on l'a prévue dans le code)</td></tr>
+</table>
+<div class="tip">Pourquoi <code>cage</code> ? Ton ordi n'a pas de bureau : <code>cage</code> ouvre <b>une</b> fenêtre en plein écran,
+exactement comme pour <code>cage -- glmark2</code>. La <b>première fois</b>, demande à papa de lancer
+<code>demoscene-setup</code> pour installer pygame. 😊</div>
+
+<h2 style="color:#13868a">🧭 Le plan de l'écran : x →, y ↓</h2>
+<p>Pour dessiner, on donne une <b>position</b> : deux nombres <code>(x, y)</code>. Surprise : <b>x</b> va vers la
+<b>droite</b> (normal), mais <b>y</b> va vers le <b>BAS</b> ! Le coin tout en haut à gauche, c'est <code>(0, 0)</code>.</p>
+<figure>
+<svg viewBox="0 0 440 250" role="img" aria-label="le repère de l'écran : x vers la droite, y vers le bas, origine en haut à gauche">
+  <rect x="50" y="40" width="350" height="185" rx="8" fill="#10102a" stroke="#13868a" stroke-width="2"/>
+  <circle cx="50" cy="40" r="5" fill="#ffd34d"/>
+  <text x="58" y="34" font-family="Cascadia Code,monospace" font-size="12" fill="#ffd34d">(0, 0) le coin</text>
+  <!-- axe x -->
+  <line x1="50" y1="40" x2="250" y2="40" stroke="#ff7ad0" stroke-width="3"/>
+  <path d="M250 40 l-9 -5 l0 10 z" fill="#ff7ad0"/>
+  <text x="150" y="56" font-family="Segoe UI" font-size="13" font-weight="700" fill="#ff7ad0">x → (droite)</text>
+  <!-- axe y -->
+  <line x1="50" y1="40" x2="50" y2="180" stroke="#7ad0ff" stroke-width="3"/>
+  <path d="M50 180 l-5 -9 l10 0 z" fill="#7ad0ff"/>
+  <text x="58" y="120" font-family="Segoe UI" font-size="13" font-weight="700" fill="#7ad0ff">y ↓ (le bas !)</text>
+  <!-- point exemple -->
+  <line x1="250" y1="40" x2="250" y2="160" stroke="#888" stroke-width="1" stroke-dasharray="4 3"/>
+  <line x1="50" y1="160" x2="250" y2="160" stroke="#888" stroke-width="1" stroke-dasharray="4 3"/>
+  <circle cx="250" cy="160" r="8" fill="#ffd34d"/>
+  <text x="262" y="164" font-family="Cascadia Code,monospace" font-size="12" fill="#ffd34d">(x=200, y=120)</text>
+</svg>
+<figcaption>Une position = <code>(x, y)</code>. Plus <b>y</b> est grand, plus on descend ⬇️.</figcaption>
+</figure>
+
+<h2 style="color:#13868a">🌈 Les couleurs : <code>(Rouge, Vert, Bleu)</code></h2>
+<p>Une couleur = <b>3 nombres de 0 à 255</b> : combien de <b>R</b>ouge, de <b>V</b>ert, de <b>B</b>leu. On les mélange comme de la lumière !</p>
+<figure>
+<svg viewBox="0 0 540 92" role="img" aria-label="des couleurs avec leurs valeurs rouge vert bleu">
+  <g font-family="Cascadia Code,monospace" font-size="9.5" text-anchor="middle">
+    <rect x="14" y="10" width="48" height="40" rx="5" fill="rgb(0,0,0)" stroke="#ccc"/><text x="38" y="64" fill="#333">(0,0,0)</text><text x="38" y="76" fill="#777">noir</text>
+    <rect x="78" y="10" width="48" height="40" rx="5" fill="rgb(255,0,0)"/><text x="102" y="64" fill="#333">(255,0,0)</text><text x="102" y="76" fill="#777">rouge</text>
+    <rect x="142" y="10" width="48" height="40" rx="5" fill="rgb(0,200,60)"/><text x="166" y="64" fill="#333">(0,255,0)</text><text x="166" y="76" fill="#777">vert</text>
+    <rect x="206" y="10" width="48" height="40" rx="5" fill="rgb(40,90,255)"/><text x="230" y="64" fill="#333">(0,0,255)</text><text x="230" y="76" fill="#777">bleu</text>
+    <rect x="270" y="10" width="48" height="40" rx="5" fill="rgb(255,210,0)"/><text x="294" y="64" fill="#333">(255,255,0)</text><text x="294" y="76" fill="#777">jaune</text>
+    <rect x="334" y="10" width="48" height="40" rx="5" fill="rgb(0,210,210)"/><text x="358" y="64" fill="#333">(0,255,255)</text><text x="358" y="76" fill="#777">cyan</text>
+    <rect x="398" y="10" width="48" height="40" rx="5" fill="rgb(255,255,255)" stroke="#ccc"/><text x="422" y="64" fill="#333">(255,255,255)</text><text x="422" y="76" fill="#777">blanc</text>
+    <rect x="462" y="10" width="48" height="40" rx="5" fill="rgb(255,80,200)"/><text x="486" y="64" fill="#333">(255,80,200)</text><text x="486" y="76" fill="#777">rose</text>
+  </g>
+</svg>
+<figcaption>Tout en haut (255) = beaucoup ; à zéro = rien. Mélange-les pour inventer TES couleurs ! 🎨</figcaption>
+</figure>
+
+<h2 style="color:#13868a">🆘 Au secours (côté graphisme)</h2>
+<table>
+<tr><th>Ce qui se passe</th><th>Quoi faire</th></tr>
+<tr><td>🚫 <code>No module named pygame</code></td><td>pygame n'est pas installé → demande à papa : <code>demoscene-setup</code>.</td></tr>
+<tr><td>⬛ Fenêtre noire qui ne s'ouvre pas</td><td>tu l'as lancée sans <code>cage</code> → écris <code>cage -- python3 ma-demo.py</code>.</td></tr>
+<tr><td>🟥 Texte rouge (erreur Python)</td><td>lis la <b>dernière ligne</b> et le <b>numéro de ligne</b> : souvent un espace au début (l'indentation 🐍) ou une parenthèse oubliée.</td></tr>
+<tr><td>🧊 Tout est figé</td><td>appuie sur <span class="kbd">Échap</span> ; si ça ne répond pas, <span class="kbd">Ctrl</span>+<span class="kbd">C</span> dans la console.</td></tr>
+</table>
+
+<!-- ============================================================ PARTIE 9 -->
+<div class="part" style="background:linear-gradient(95deg,#13868a,#1f9fa3)"><div class="n">Partie 9</div><h2 id="p9" style="color:#fff;border:none">🟢 Afficher &amp; faire bouger</h2></div>
+
+<div class="defi" style="border-color:#9fdbe0;background:#f1fafb">
+<h3>On y va tout doux — une étape à la fois 🐢</h3>
+
+<div class="step"><b class="n">1 — afficher une boule (le plus simple !)</b><br>
+Ouvre <code>micro ma-demo.py</code> et écris juste ça. <b>Pas encore de boucle</b> — on veut juste voir une image apparaître :
+<pre class="code">import pygame
+pygame.init()
+ecran = pygame.display.set_mode((800, 600))               # une fenetre
+ecran.fill((40, 10, 80))                                  # peindre le fond en violet
+pygame.draw.circle(ecran, (255, 200, 0), (400, 300), 60) # une boule jaune au milieu
+pygame.display.flip()                                     # MONTRER l'image
+pygame.time.wait(3000)                                    # attendre 3 secondes
+pygame.quit()</pre>
+<span class="run">▶ cage -- python3 ma-demo.py</span> → une fenêtre violette avec une <b>boule jaune</b> pendant 3 secondes, puis ça se ferme tout seul. 🎉
+<div class="expl">🔍 4 mots à retenir : <code>fill</code> = peindre le fond · <code>draw.circle</code> = dessiner · <code>flip</code> = montrer · <code>wait(3000)</code> = attendre 3000 millisecondes. <b>Tu viens d'afficher quelque chose à l'écran !</b> 👏</div></div>
+<div class="tip">😌 <b>Tout doux :</b> recopie <b>ligne par ligne</b>, sans te presser. Si tu vois du <b>texte rouge</b>, il t'indique le <b>numéro de la ligne</b> qui coince — tu corriges juste celle-là. Se tromper, c'est NORMAL (les pros aussi !). 🌱</div>
+
+<div class="step"><b class="n">2 — la boucle magique (pour que ça reste affiché)</b><br>
+Avec <code>wait</code>, l'image part au bout de 3 s. Pour qu'elle <b>reste</b> (et plus tard qu'elle <b>bouge</b>), on remplace <code>wait</code> par une <b>boucle</b>. Voici le <b>cadre magique</b> : recopie-le une fois, on s'en servira à chaque demo.
+<pre class="code">import pygame
+pygame.init()
+ecran = pygame.display.set_mode((800, 600))
+horloge = pygame.time.Clock()
+jeu = True
+while jeu:                                    # la boucle : tourne 60 fois par seconde
+    for e in pygame.event.get():
+        if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE):
+            jeu = False                       # fermer (croix ou touche Echap)
+    ecran.fill((40, 10, 80))                  # le fond
+    pygame.draw.circle(ecran, (255, 200, 0), (400, 300), 60)
+    pygame.display.flip()                     # montrer
+    horloge.tick(60)
+pygame.quit()</pre>
+<span class="run">▶</span> → la même boule, mais elle <b>reste</b> à l'écran ! <span class="kbd">Échap</span> pour fermer.
+<div class="expl">🔍 La <b>boucle</b> <code>while jeu:</code> redessine l'image 60 fois par seconde — c'est le <b>cœur de toutes les demos</b>. C'est le plus gros morceau du guide ; après, on n'ajoutera plus qu'<b>une ligne ou deux à la fois</b>. 😊</div></div>
+
+<div class="step"><b class="n">3 — dessine plein de formes</b><br>
+Entre <code>ecran.fill(...)</code> et <code>pygame.display.flip()</code>, ajoute des formes (et change les chiffres pour voir !) :
+<pre class="code">    pygame.draw.circle(ecran, (255, 80, 200), (400, 300), 60)   # cercle rose
+    pygame.draw.rect(ecran, (80, 255, 120), (100, 100, 140, 90)) # rectangle vert
+    pygame.draw.line(ecran, (255, 255, 0), (0, 0), (800, 600), 5) # ligne jaune</pre>
+<span class="run">▶</span> → un cercle, un rectangle, une ligne ! 🎨</div>
+<div class="exo"><b class="t">🎯 Exo —</b> dessine un <b>bonhomme de neige</b> : 3 cercles blancs l'un au-dessus de l'autre (change juste le <code>y</code> : 200, 320, 460) ⛄.</div>
+
+<div class="step"><b class="n">4 — fais-le BOUGER</b><br>
+Avant la boucle, crée une variable <code>x = 100</code>. Dans la boucle, dessine le cercle en <code>x</code>, puis augmente <code>x</code> :
+<pre class="code">    ecran.fill((10, 10, 40))
+    pygame.draw.circle(ecran, (255, 200, 0), (x, 300), 40)
+    x = x + 4              # le cercle avance vers la droite →</pre>
+<span class="run">▶</span> → le cercle <b>glisse</b> ! (Il sort de l'écran… on règle ça à l'étape 4.)
+<div class="expl">🔍 La même chose dessinée à une place <b>un peu différente</b> 60 fois par seconde = du <b>mouvement</b>. 🪄</div></div>
+
+<div class="step"><b class="n">5 — fais-le REBONDIR</b><br>
+On ajoute une <b>vitesse</b> <code>dx</code>, et on inverse la direction quand on touche un bord :
+<pre class="code">x = 100
+dx = 5
+# ... dans la boucle :
+    x = x + dx
+    if x &lt; 40 or x &gt; 760:    # touche un bord gauche/droite
+        dx = -dx              # demi-tour !
+    ecran.fill((10, 10, 40))
+    pygame.draw.circle(ecran, (0, 255, 255), (x, 300), 40)</pre>
+<span class="run">▶</span> → la balle rebond comme le logo « DVD » 📺 !</div>
+<div class="exo"><b class="t">🎯 Exo —</b> ajoute un <b>y</b> et un <b>dy</b> pour qu'elle rebondisse <b>aussi</b> en haut et en bas (copie les lignes de <code>x</code> en remplaçant par <code>y</code>, et <code>760→560</code>).</div>
+
+<div class="step"><b class="n">6 — PLEIN de balles d'un coup</b><br>
+Une <b>liste</b> de balles, chacune avec sa position, sa vitesse et sa couleur :
+<pre class="code">import pygame, random
+pygame.init()
+ecran = pygame.display.set_mode((800, 600))
+horloge = pygame.time.Clock()
+balles = []
+for i in range(40):
+    balles.append([random.randint(50, 750), random.randint(50, 550),
+                   random.choice([-4, -3, 3, 4]), random.choice([-4, -3, 3, 4]),
+                   (random.randint(60, 255), random.randint(60, 255), random.randint(60, 255))])
+jeu = True
+while jeu:
+    for e in pygame.event.get():
+        if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE):
+            jeu = False
+    ecran.fill((0, 0, 0))
+    for b in balles:
+        b[0] = b[0] + b[2]
+        b[1] = b[1] + b[3]
+        if b[0] &lt; 15 or b[0] &gt; 785: b[2] = -b[2]
+        if b[1] &lt; 15 or b[1] &gt; 585: b[3] = -b[3]
+        pygame.draw.circle(ecran, b[4], (b[0], b[1]), 12)
+    pygame.display.flip()
+    horloge.tick(60)
+pygame.quit()</pre>
+<span class="run">▶</span> → <b>40 balles multicolores</b> qui rebondissent partout ! 🎉</div>
+<div class="exo"><b class="t">🎯 Exo —</b> change <code>range(40)</code> en <code>range(200)</code> → une pluie de couleurs ! Puis enlève le <code>ecran.fill((0,0,0))</code> : les balles laissent des <b>traces</b> 🌈.</div>
+
+<div class="step"><b class="n">7 — la souris &amp; les touches</b><br>
+Suis la souris, ou pilote avec les flèches (dans la boucle) :
+<pre class="code">    mx, my = pygame.mouse.get_pos()
+    pygame.draw.circle(ecran, (255, 255, 255), (mx, my), 25)   # un point suit ta souris 🐭
+
+    touches = pygame.key.get_pressed()      # les fleches enfoncees
+    if touches[pygame.K_LEFT]:  x = x - 6
+    if touches[pygame.K_RIGHT]: x = x + 6
+    if touches[pygame.K_UP]:    y = y - 6
+    if touches[pygame.K_DOWN]:  y = y + 6</pre>
+<span class="run">▶</span> → c'est <b>toi</b> qui pilotes ! 🎮</div>
+
+<div class="step"><b class="n">8 — mini-projet : la balle arc-en-ciel 🌈</b><br>
+On fait rebondir une balle ET on change sa couleur tout le temps :
+<pre class="code">import pygame
+pygame.init()
+ecran = pygame.display.set_mode((800, 600))
+horloge = pygame.time.Clock()
+x, y, dx, dy, couleur = 400, 300, 5, 4, 0
+jeu = True
+while jeu:
+    for e in pygame.event.get():
+        if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE):
+            jeu = False
+    x = x + dx; y = y + dy
+    if x &lt; 40 or x &gt; 760: dx = -dx
+    if y &lt; 40 or y &gt; 560: dy = -dy
+    couleur = (couleur + 2) % 360
+    c = pygame.Color(0); c.hsva = (couleur, 100, 100, 100)   # une couleur de l'arc-en-ciel
+    ecran.fill((0, 0, 0))
+    pygame.draw.circle(ecran, c, (x, y), 40)
+    pygame.display.flip()
+    horloge.tick(60)
+pygame.quit()</pre>
+<span class="run">▶</span> → ta première mini-demo : une balle qui rebondit en changeant de couleur ! 🏆</div>
+</div>
+
+<!-- ============================================================ PARTIE 10 -->
+<div class="pagebreak"></div>
+<div class="part" style="background:linear-gradient(95deg,#13868a,#1f9fa3)"><div class="n">Partie 10</div><h2 id="p10" style="color:#fff;border:none">🌌 Les vrais effets demoscene</h2></div>
+<p>Voici les effets <b>classiques</b> que les demosceners font depuis 30 ans. Recopie-les, lance-les, puis <b>change les nombres</b> pour voir ! (On utilise aussi <code>numpy</code>, déjà installé, pour calculer vite plein de pixels.)</p>
+
+<div class="defi" style="border-color:#9fdbe0;background:#f1fafb">
+<h3>⭐ Le champ d'étoiles (starfield) — voyage dans l'espace</h3>
+<p>Des étoiles foncent vers toi, comme dans un vaisseau spatial 🚀. Crée <code>micro etoiles.py</code> :</p>
+<pre class="code">import pygame, random
+pygame.init()
+L, H = 800, 600
+ecran = pygame.display.set_mode((L, H))
+horloge = pygame.time.Clock()
+etoiles = [[random.uniform(-1, 1), random.uniform(-1, 1), random.uniform(0.1, 1)] for i in range(250)]
+jeu = True
+while jeu:
+    for e in pygame.event.get():
+        if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE):
+            jeu = False
+    ecran.fill((0, 0, 0))
+    for s in etoiles:
+        s[2] = s[2] - 0.008                     # l'etoile s'approche
+        if s[2] &lt;= 0.02:                         # trop pres : on la renvoie au loin
+            s[0] = random.uniform(-1, 1); s[1] = random.uniform(-1, 1); s[2] = 1
+        sx = int(L/2 + s[0] / s[2] * 300)        # projection 3D vers 2D
+        sy = int(H/2 + s[1] / s[2] * 300)
+        taille = int((1 - s[2]) * 4) + 1
+        if 0 &lt;= sx &lt; L and 0 &lt;= sy &lt; H:
+            pygame.draw.circle(ecran, (255, 255, 255), (sx, sy), taille)
+    pygame.display.flip()
+    horloge.tick(60)
+pygame.quit()</pre>
+<span class="run">▶ cage -- python3 etoiles.py</span> → tu voles dans les étoiles ! ✨
+<div class="exo"><b class="t">🎯 Exo —</b> remplace <code>0.008</code> par <code>0.02</code> (plus rapide !), et mets des étoiles <b>colorées</b> au hasard à la place du blanc.</div></div>
+
+<div class="defi" style="border-color:#9fdbe0;background:#f1fafb">
+<h3>🌊 Le plasma — des vagues de couleur</h3>
+<p>Le grand classique : des <b>sinus</b> (des vagues) qui font onduler les couleurs. Recette magique à recopier dans <code>micro plasma.py</code> :</p>
+<pre class="code">import pygame, numpy as np
+pygame.init()
+L, H = 200, 150                                   # petite image (rapide), agrandie ensuite
+ecran = pygame.display.set_mode((800, 600))
+surf = pygame.Surface((L, H))
+gx, gy = np.meshgrid(np.arange(L), np.arange(H))
+t = 0.0
+horloge = pygame.time.Clock()
+jeu = True
+while jeu:
+    for e in pygame.event.get():
+        if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE):
+            jeu = False
+    v = np.sin(gx*0.06 + t) + np.sin(gy*0.05 - t) + np.sin((gx+gy)*0.04 + t)   # les vagues
+    r = (np.sin(v*3.14) * 127 + 128).astype(np.uint8)
+    g = (np.sin(v*3.14 + 2) * 127 + 128).astype(np.uint8)
+    b = (np.sin(v*3.14 + 4) * 127 + 128).astype(np.uint8)
+    img = np.transpose(np.dstack([r, g, b]), (1, 0, 2))
+    pygame.surfarray.blit_array(surf, img)
+    ecran.blit(pygame.transform.scale(surf, (800, 600)), (0, 0))
+    pygame.display.flip()
+    t = t + 0.05
+    horloge.tick(60)
+pygame.quit()</pre>
+<span class="run">▶</span> → un océan de couleurs qui ondule. 🌈🌊
+<div class="exo"><b class="t">🎯 Exo —</b> change les nombres <code>0.06</code>, <code>0.05</code>, <code>0.04</code> : chaque valeur donne un plasma différent. Et les <code>+ 2</code> / <code>+ 4</code> changent les couleurs !</div></div>
+
+<div class="defi" style="border-color:#9fdbe0;background:#f1fafb">
+<h3>🎬 Le texte qui défile (scroller) + la musique</h3>
+<p>Le « bonjour » des demos : un <b>message géant</b> qui glisse, avec une <b>musique</b> par-dessus.</p>
+<pre class="code">import pygame
+pygame.init()
+pygame.mixer.init()
+ecran = pygame.display.set_mode((800, 600))
+horloge = pygame.time.Clock()
+police = pygame.font.Font(None, 90)                       # la police par defaut de pygame
+texte = police.render("SALUT  C'EST  MOI  !   ", True, (255, 230, 0))
+sx = 800
+# pygame.mixer.music.load("/home/eleve/Musique/ma-chanson.ogg")  # decommente si tu as une musique
+# pygame.mixer.music.play(-1)                                       # -1 = en boucle
+jeu = True
+while jeu:
+    for e in pygame.event.get():
+        if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE):
+            jeu = False
+    ecran.fill((0, 0, 30))
+    sx = sx - 5
+    if sx &lt; -texte.get_width():       # sorti a gauche : on le remet a droite
+        sx = 800
+    ecran.blit(texte, (sx, 260))
+    pygame.display.flip()
+    horloge.tick(60)
+pygame.quit()</pre>
+<span class="run">▶</span> → ton message traverse l'écran ! 🎞️
+<div class="tip">🎵 <b>Avec la musique :</b> enlève les <code>#</code> des 2 lignes <code>pygame.mixer.music...</code> et mets le chemin d'une de tes chansons (en <code>.ogg</code> de préférence). Une demo = des images <b>+</b> du son !</div></div>
+
+<div class="defi" style="border-color:#e6cf73;background:#fffced">
+<h3>🏆 Le grand mix : ta première VRAIE demo</h3>
+<p>Le secret des pros : on <b>empile les effets</b> dans la même boucle. Ici : starfield <b>en fond</b> + scroller <b>par-dessus</b>. Recopie tes étoiles, et ajoute le texte AVANT le <code>flip</code> :</p>
+<pre class="code"># (le code des etoiles, puis, juste avant pygame.display.flip() :)
+    ecran.blit(texte, (sx, 500))
+    sx = sx - 5
+    if sx &lt; -texte.get_width(): sx = 800</pre>
+<span class="run">▶</span> → des étoiles qui foncent + ton message qui défile = une <b>demo</b> ! 🎆🏆
+<div class="exo"><b class="t">🎯 Défi final —</b> ajoute la <b>musique</b> (mixer), puis une <b>balle arc-en-ciel</b> de la Partie 9 par-dessus. C'est TA demo, signe-la dans le texte ! ✍️</div></div>
+
+<!-- ============================================================ PARTIE 11 -->
+<div class="pagebreak"></div>
+<div class="part" style="background:linear-gradient(95deg,#7b3fbf,#a85cff)"><div class="n">Partie 11</div><h2 id="p11" style="color:#fff;border:none">🎆 Peindre avec des maths : les shaders</h2></div>
+<p>Niveau <b>pro</b> ! Un <b>shader</b>, c'est un mini-programme qui décide la couleur de <b>chaque pixel</b> en même temps —
+l'ordinateur les calcule <b>tous d'un coup</b> avec sa carte graphique. C'est ce qui fait les plus belles demos. On
+utilise <b>glslViewer</b> : tu écris un fichier <code>.frag</code>, et il l'affiche.</p>
+<div class="tip"><b>Comment faire :</b> écris le shader avec <code>micro mon.frag</code>, puis lance
+<code>cage -- glslViewer mon.frag</code> (Échap/Ctrl+C pour quitter). Change, relance, regarde — comme d'habitude.
+<br>La <b>première fois</b>, papa l'installe avec <code>demoscene-setup</code> (option shaders).</div>
+
+<div class="defi" style="border-color:#cdb3f0;background:#f7f2fd">
+<div class="step"><b class="n">1 — une couleur unie</b><br>
+<pre class="code">#ifdef GL_ES
+precision mediump float;
+#endif
+void main() {
+    gl_FragColor = vec4(1.0, 0.0, 0.6, 1.0);   // (Rouge, Vert, Bleu, opacite) de 0 a 1
+}</pre>
+<span class="run">▶ cage -- glslViewer mon.frag</span> → tout l'écran devient <b>rose</b> 🌸.
+<div class="expl">🔍 Ici les couleurs vont de <b>0 à 1</b> (pas 0 à 255). <code>vec4</code> = 4 nombres : R, V, B, et l'opacité.</div></div>
+
+<div class="step"><b class="n">2 — un dégradé</b><br>
+Chaque pixel connaît sa position. <code>u_resolution</code> = la taille de l'écran.
+<pre class="code">#ifdef GL_ES
+precision mediump float;
+#endif
+uniform vec2 u_resolution;
+void main() {
+    vec2 uv = gl_FragCoord.xy / u_resolution.xy;   // position du pixel, de 0 a 1
+    gl_FragColor = vec4(uv.x, uv.y, 0.5, 1.0);     // rouge selon x, vert selon y
+}</pre>
+<span class="run">▶</span> → un beau dégradé de couleurs ! 🌅</div>
+
+<div class="step"><b class="n">3 — ça bouge (le temps <code>u_time</code>)</b><br>
+<code>u_time</code> = le temps qui avance. On le met dans un <code>sin</code> (une vague) → ça anime !
+<pre class="code">#ifdef GL_ES
+precision mediump float;
+#endif
+uniform vec2 u_resolution;
+uniform float u_time;
+void main() {
+    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+    float c = 0.5 + 0.5 * sin(u_time + uv.x * 10.0);
+    gl_FragColor = vec4(c, uv.y, 1.0 - c, 1.0);
+}</pre>
+<span class="run">▶</span> → des bandes de couleur qui <b>ondulent</b> 🌊.</div>
+
+<div class="step"><b class="n">4 — un rond au milieu</b><br>
+<pre class="code">#ifdef GL_ES
+precision mediump float;
+#endif
+uniform vec2 u_resolution;
+void main() {
+    vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / u_resolution.y;
+    float d = length(uv);                       // distance au centre
+    float rond = smoothstep(0.31, 0.30, d);     // 1 dedans, 0 dehors
+    gl_FragColor = vec4(vec3(rond), 1.0);
+}</pre>
+<span class="run">▶</span> → un disque blanc bien net 🔵.</div>
+
+<div class="step"><b class="n">5 — le plasma en shader 🌈</b><br>
+<pre class="code">#ifdef GL_ES
+precision mediump float;
+#endif
+uniform vec2 u_resolution;
+uniform float u_time;
+void main() {
+    vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+    float v = sin(uv.x * 10.0 + u_time)
+            + sin(uv.y * 10.0 + u_time)
+            + sin((uv.x + uv.y) * 10.0 + u_time);
+    vec3 col = 0.5 + 0.5 * cos(v + vec3(0.0, 2.0, 4.0));
+    gl_FragColor = vec4(col, 1.0);
+}</pre>
+<span class="run">▶</span> → un plasma <b>tout lisse</b>, calculé par la carte graphique ! 🎆</div>
+<div class="exo"><b class="t">🎯 Exo —</b> change les <code>10.0</code> (plus grand = plus de vagues) et le <code>vec3(0.0, 2.0, 4.0)</code> (les couleurs). Tu peux aussi remplacer un <code>sin</code> par <code>cos</code>. À l'infini ! ♾️</div>
+</div>
+
+<!-- ============================================================ PARTIE 12 -->
+<div class="pagebreak"></div>
+<div class="part" style="background:linear-gradient(95deg,#8a2d6b,#13868a)"><div class="n">Partie 12 · le grand final</div><h2 id="p12" style="color:#fff;border:none">🎬 LA GRANDE DEMO : image + musique ensemble</h2></div>
+<p>Une vraie <b>demo</b>, c'est des <b>images qui bougent</b> ET de la <b>musique</b> en même temps 🎵🎨. On va en fabriquer une, comme
+à la vraie <b>demoscene</b>, en empilant les effets <b>un par un</b>. Le secret : <b>pygame sait aussi jouer de la musique</b> !</p>
+<div class="tip">🌍 <b>La culture demoscene :</b> depuis 30 ans, les artistes font des « demos » avec des effets cultes — le
+<b>scroller en vague</b>, les <b>barres de couleur</b>, les <b>étoiles</b>… Et il y a deux traditions rigolotes : <b>saluer</b> ses
+amis dans le texte (les « greetings ») et <b>signer</b> qui a tout fait (« Code &amp; Graphics &amp; Music : toi ! »). On va faire pareil. 😎</div>
+
+<div class="defi" style="border-color:#e6a9d0;background:#fdf5fa">
+<div class="step"><b class="n">1 — mettre la musique</b><br>
+Au tout début du programme, charge une chanson (une de tes musiques dans <code>~/Musique</code>, en <code>.mp3</code> ou <code>.ogg</code>) :
+<pre class="code">pygame.mixer.init()
+pygame.mixer.music.load("/home/eleve/Musique/ma-chanson.mp3")
+pygame.mixer.music.play(-1)      # -1 = joue en boucle, pour toujours</pre>
+<div class="expl">🔍 <code>pygame.mixer</code> = la partie « son ». Pas encore de musique à toi ? Prends-en une <b>libre</b> (guide bleu 🐧). On assemble tout à l'étape 6.</div></div>
+
+<div class="step"><b class="n">2 — le fond : les BARRES DE COULEUR (copper bars)</b><br>
+L'effet « Amiga » classique : des bandes de couleur horizontales qui ondulent. On peint des lignes du haut en bas :
+<pre class="code"># dans la boucle (t = le temps) :
+    for yb in range(0, H, 6):
+        c = abs(math.sin(yb * 0.02 + t * 2))
+        couleur = (int(c*120), int(c*40), int(80 + c*120))
+        pygame.draw.line(ecran, couleur, (0, yb), (L, yb), 6)</pre>
+<div class="expl">🔍 Chaque ligne <code>yb</code> prend une couleur qui suit une <b>vague</b> (<code>sin</code>) ; le <code>+ t*2</code> fait <b>glisser</b> les barres. Change <code>0.02</code> (largeur des barres) et <code>t*2</code> (vitesse).</div></div>
+
+<div class="step"><b class="n">3 — le SCROLLER EN VAGUE (l'effet star de la scène ⭐)</b><br>
+Un texte qui défile <b>en ondulant</b>. On dessine chaque lettre à une hauteur qui suit un <code>sin</code> :
+<pre class="code"># avant la boucle :
+police = pygame.font.Font(None, 90)
+message = "  *  COUCOU C'EST MOI  *  SALUT PAPA ET MAMAN  *  "
+lettres = [police.render(ch, True, (255, 230, 0)) for ch in message]
+largeurs = [img.get_width() for img in lettres]
+total = sum(largeurs)
+defile = 0.0
+# dans la boucle :
+    defile += 5                       # vitesse du defilement
+    x = L - defile
+    for i in range(len(lettres)):
+        if -50 &lt; x &lt; L:
+            yv = H/2 + math.sin(x * 0.01 + t * 2) * 80   # &lt;- LA VAGUE
+            ecran.blit(lettres[i], (int(x), int(yv)))
+        x += largeurs[i]
+    if defile &gt; total + L:
+        defile = 0                    # le texte recommence</pre>
+<div class="expl">🔍 Le <code>sin(x * 0.01 …)</code> donne à chaque lettre une hauteur différente → le texte fait <b>la vague</b> 🌊. Change <code>0.01</code> (longueur des vagues) et <code>80</code> (hauteur des vagues).</div></div>
+
+<div class="step"><b class="n">4 — le BEAT (une boule qui bat) 🥁</b><br>
+Un cercle qui grossit/rétrécit. Règle <code>2.0</code> pour qu'il « tape » sur ta musique :
+<pre class="code"># dans la boucle :
+    pulse = abs(math.sin(t * 2.0))
+    pygame.draw.circle(ecran, (255, 80, 200), (L//2, H//2), int(20 + pulse*60), 4)</pre>
+<div class="expl">🔍 Le dernier <code>4</code> = un cercle <b>creux</b> (juste le contour). Mets <code>0</code> pour une boule pleine. Change <code>2.0</code> pour coller au rythme.</div></div>
+
+<div class="step"><b class="n">5 — les GREETINGS &amp; ta signature ✍️</b><br>
+La tradition de la scène : dans le <code>message</code> du scroller, <b>salue</b> les gens et <b>signe</b> ta demo :
+<pre class="code">message = "  *  DEMO DE MOI  *  GREETINGS : PAPA MAMAN  *  CODE GRAPHICS MUSIC : MOI  *  "</pre>
+<div class="expl">🔍 « Greetings » = coucou aux amis. Et c'est <b>toi</b> qui as tout fait → tu mérites ta signature ! 🌟</div></div>
+
+<div class="step"><b class="n">6 — TA VRAIE DEMO (on assemble tout) 🎆</b><br>
+Crée <code>micro ma-demo.py</code> et recopie le tout : musique + barres + étoiles + beat + scroller en vague.
+<pre class="code">import pygame, math, random
+pygame.init()
+pygame.mixer.init()
+L, H = 800, 600
+ecran = pygame.display.set_mode((L, H))
+horloge = pygame.time.Clock()
+
+pygame.mixer.music.load("/home/eleve/Musique/ma-chanson.mp3")   # &lt;- ta chanson
+pygame.mixer.music.play(-1)
+
+police = pygame.font.Font(None, 90)
+message = "  *  DEMO DE MOI  *  GREETINGS : PAPA MAMAN  *  CODE GRAPHICS MUSIC : MOI  *  "
+lettres = [police.render(ch, True, (255, 230, 0)) for ch in message]
+largeurs = [img.get_width() for img in lettres]
+total = sum(largeurs)
+defile = 0.0
+
+etoiles = [[random.uniform(-1,1), random.uniform(-1,1), random.uniform(0.1,1)] for i in range(150)]
+
+jeu = True
+while jeu:
+    for e in pygame.event.get():
+        if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE):
+            jeu = False
+    t = pygame.time.get_ticks() / 1000.0
+
+    # 1) le fond : barres de couleur
+    for yb in range(0, H, 6):
+        c = abs(math.sin(yb * 0.02 + t * 2))
+        pygame.draw.line(ecran, (int(c*120), int(c*40), int(80 + c*120)), (0, yb), (L, yb), 6)
+
+    # 2) les etoiles
+    for s in etoiles:
+        s[2] = s[2] - 0.01
+        if s[2] &lt;= 0.02:
+            s[0]=random.uniform(-1,1); s[1]=random.uniform(-1,1); s[2]=1
+        x = int(L/2 + s[0]/s[2]*300); y = int(H/2 + s[1]/s[2]*300)
+        if 0 &lt;= x &lt; L and 0 &lt;= y &lt; H:
+            pygame.draw.circle(ecran, (255,255,255), (x, y), int((1-s[2])*3)+1)
+
+    # 3) le beat
+    pulse = abs(math.sin(t * 2.0))
+    pygame.draw.circle(ecran, (255, 80, 200), (L//2, H//2), int(20 + pulse*60), 4)
+
+    # 4) le scroller en vague
+    defile += 5
+    x = L - defile
+    for i in range(len(lettres)):
+        if -50 &lt; x &lt; L:
+            yv = H - 110 + math.sin(x*0.01 + t*2) * 60
+            ecran.blit(lettres[i], (int(x), int(yv)))
+        x += largeurs[i]
+    if defile &gt; total + L:
+        defile = 0
+
+    pygame.display.flip()
+    horloge.tick(60)
+pygame.quit()</pre>
+<span class="run">▶ cage -- python3 ma-demo.py</span> → barres + étoiles + beat + ton texte en vague + ta musique = <b>TA VRAIE DEMO !</b> 🎆🎉🏆</div>
+<div class="exo"><b class="t">🎯 À toi de la rendre unique —</b> change la <b>musique</b>, les <b>couleurs</b>, le <b>message</b> ; ajoute un <b>plasma</b> (Partie 10) ou une <b>balle arc-en-ciel</b> (Partie 9). Puis lance-la <b>devant toute la famille</b> ! 👨‍👩‍👧‍👦</div>
+</div>
+
+<div class="tip">🎇 <b>Pour des visuels qui réagissent VRAIMENT au son tout seuls</b> (qui gonflent sur les graves), le plus simple reste
+<b>Strudel + Hydra</b> (Partie 7 du Livre 1) : musique <b>et</b> image au même endroit, l'image suit le son automatiquement.
+Deux façons de faire une demo — tu as les deux dans les mains ! 😊</div>
+
+<!-- ============================================================ PARTIE 13 -->
+<div class="pagebreak"></div>
+<div class="part" style="background:linear-gradient(95deg,#13868a,#7b3fbf)"><div class="n">Partie 13 · demo 2</div><h2 id="p13" style="color:#fff;border:none">🌀 Demo 2 : la boule de points qui tourne</h2></div>
+<p>Un autre effet <b>légendaire</b> de la scène : une <b>boule en 3D faite de points</b> qui tourne dans l'espace (on appelle ça
+des « <b>vector balls</b> »). C'était LA star des démos Amiga des années 90 ! On la fabrique étape par étape, avec ta musique.</p>
+<div class="tip">📺 <b>À regarder avec papa</b> — les vraies démos qui ont inspiré ça (sur YouTube) :
+« <b>Second Reality — Future Crew</b> » (1993) et « <b>State of the Art — Spaceballs</b> » (1992). C'est ancien… et c'était de la magie ! ✨</div>
+
+<div class="defi" style="border-color:#cdb3f0;background:#f7f2fd">
+<div class="step"><b class="n">1 — la musique</b><br>
+Comme dans la Demo 1 :
+<div class="cmd">pygame.mixer.init()
+pygame.mixer.music.load("/home/eleve/Musique/ma-chanson.mp3")
+pygame.mixer.music.play(-1)</div></div>
+
+<div class="step"><b class="n">2 — fabriquer les points de la boule</b><br>
+Avant la boucle, on pose plein de points <b>sur une sphère</b>, avec deux tours (du haut vers le bas, et tout autour) :
+<pre class="code">import math
+points = []
+for i in range(20, 180, 20):        # du haut vers le bas
+    for j in range(0, 360, 18):     # tout autour
+        la = math.radians(i); lo = math.radians(j)
+        points.append((math.sin(la)*math.cos(lo), math.cos(la), math.sin(la)*math.sin(lo)))</pre>
+<div class="expl">🔍 Chaque point a 3 nombres <code>(x, y, z)</code> = sa place dans l'espace. <code>sin</code>/<code>cos</code> les répartissent en boule 🌐.</div></div>
+
+<div class="step"><b class="n">3 — les faire TOURNER &amp; les afficher</b><br>
+Dans la boucle, on tourne chaque point, puis on le « projette » sur l'écran (comme les étoiles de la Partie 10 !) :
+<pre class="code"># dans la boucle :
+    t = pygame.time.get_ticks() / 1000.0
+    a = t                                   # l'angle qui avance avec le temps
+    for (x, y, z) in points:
+        xr = x*math.cos(a) - z*math.sin(a)  # tourne autour de l'axe vertical
+        zr = x*math.sin(a) + z*math.cos(a)
+        f = 300 / (zr + 4)                  # projection : loin = petit
+        sx = int(L/2 + xr*f)
+        sy = int(H/2 + y*f)
+        pygame.draw.circle(ecran, (120, 200, 255), (sx, sy), 3)</pre>
+<span class="run">▶</span> → une boule de points qui tourne ! 🌀 (Mets <code>a = t*2</code> pour tourner 2× plus vite.)</div>
+
+<div class="step"><b class="n">4 — la profondeur (la 3D pour de vrai)</b><br>
+Pour que les points <b>devant</b> soient plus gros et plus clairs (et passent par-dessus les autres), on calcule taille et couleur selon la distance, et on dessine les plus <b>loin</b> d'abord :
+<pre class="code"># dans la boucle, à la place du for précédent :
+    boules = []
+    for (x, y, z) in points:
+        xr = x*math.cos(a) - z*math.sin(a)
+        zr = x*math.sin(a) + z*math.cos(a)
+        f = 300 / (zr + 4)
+        sx = int(L/2 + xr*f); sy = int(H/2 + y*f)
+        taille = max(1, int(f * 0.055))
+        teinte = max(60, min(255, int(f * 2.2)))
+        boules.append((zr, sx, sy, taille, teinte))
+    boules.sort(reverse=True)               # les plus loin en premier
+    for (zr, sx, sy, taille, teinte) in boules:
+        pygame.draw.circle(ecran, (teinte, 90, 255), (sx, sy), taille)</pre>
+<span class="run">▶</span> → une <b>vraie</b> boule 3D : les points proches sont plus gros et plus clairs ! ✨</div>
+
+<div class="step"><b class="n">5 — DEMO 2 complète</b><br>
+Crée <code>micro demo2.py</code> et recopie le tout (musique + boule qui tourne + des étoiles en fond) :
+<pre class="code">import pygame, math, random
+pygame.init()
+pygame.mixer.init()
+L, H = 800, 600
+ecran = pygame.display.set_mode((L, H))
+horloge = pygame.time.Clock()
+
+pygame.mixer.music.load("/home/eleve/Musique/ma-chanson.mp3")   # &lt;- ta chanson
+pygame.mixer.music.play(-1)
+
+# les points de la boule
+points = []
+for i in range(20, 180, 20):
+    for j in range(0, 360, 18):
+        la = math.radians(i); lo = math.radians(j)
+        points.append((math.sin(la)*math.cos(lo), math.cos(la), math.sin(la)*math.sin(lo)))
+
+# des etoiles en fond
+etoiles = [(random.randint(0, L), random.randint(0, H)) for i in range(60)]
+
+jeu = True
+while jeu:
+    for e in pygame.event.get():
+        if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE):
+            jeu = False
+    ecran.fill((0, 0, 25))
+    for (ex, ey) in etoiles:
+        pygame.draw.circle(ecran, (180, 180, 210), (ex, ey), 1)
+
+    t = pygame.time.get_ticks() / 1000.0
+    a = t
+    boules = []
+    for (x, y, z) in points:
+        xr = x*math.cos(a) - z*math.sin(a)
+        zr = x*math.sin(a) + z*math.cos(a)
+        f = 300 / (zr + 4)
+        sx = int(L/2 + xr*f); sy = int(H/2 + y*f)
+        taille = max(1, int(f * 0.055))
+        teinte = max(60, min(255, int(f * 2.2)))
+        boules.append((zr, sx, sy, taille, teinte))
+    boules.sort(reverse=True)
+    for (zr, sx, sy, taille, teinte) in boules:
+        pygame.draw.circle(ecran, (teinte, 90, 255), (sx, sy), taille)
+
+    pygame.display.flip()
+    horloge.tick(60)
+pygame.quit()</pre>
+<span class="run">▶ cage -- python3 demo2.py</span> → ta <b>deuxième demo</b> : une boule de points qui tourne sur ta musique, façon Amiga ! 🌀🎵🏆</div>
+<div class="exo"><b class="t">🎯 À toi —</b> change la <b>vitesse</b> (<code>a = t*2</code>), le <b>nombre</b> de points (les <code>20</code> et <code>18</code> des boucles), les <b>couleurs</b>. Et pour qu'elle <b>batte</b> au rythme, remplace <code>f = 300 / (zr + 4)</code> par <code>f = (300 + abs(math.sin(t*2))*90) / (zr + 4)</code> → la boule <b>pulse</b> ! 🥁</div>
+</div>
+
+<!-- ============================================================ FICHES GRAPHISME -->
+<div class="pagebreak"></div>
+<h1 id="pg-fiches" style="color:#13868a">📇 Les grandes fiches — Graphisme</h1>
+<p class="lead">Ta boîte à outils de <b>codeuse-graphiste</b>. Garde ces pages sous les yeux quand tu fabriques tes demos. 🎨</p>
+
+<div class="fiche f-teal"><div class="hd">🟢 FICHE G1 — pygame : le squelette &amp; dessiner</div><div class="bd">
+<b>Le squelette (toujours pareil) :</b>
+<pre class="code">import pygame
+pygame.init()
+ecran = pygame.display.set_mode((800, 600))
+horloge = pygame.time.Clock()
+jeu = True
+while jeu:
+    for e in pygame.event.get():
+        if e.type == pygame.QUIT or (e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE):
+            jeu = False
+    ecran.fill((0, 0, 0))
+    # ... dessine ici ...
+    pygame.display.flip(); horloge.tick(60)
+pygame.quit()</pre>
+<table>
+<tr><td><code>ecran.fill((r,v,b))</code></td><td>repeindre le fond</td></tr>
+<tr><td><code>pygame.draw.circle(ecran, c, (x,y), r)</code></td><td>un cercle</td></tr>
+<tr><td><code>pygame.draw.rect(ecran, c, (x,y,larg,haut))</code></td><td>un rectangle</td></tr>
+<tr><td><code>pygame.draw.line(ecran, c, (x1,y1), (x2,y2), e)</code></td><td>une ligne</td></tr>
+<tr><td>couleur <code>c = (R, V, B)</code></td><td>3 nombres de 0 à 255 · position <code>(x, y)</code> : x→ droite, y↓ bas</td></tr>
+<tr><td>lancer</td><td><code>cage -- python3 ma-demo.py</code> · fermer = <span class="kbd">Échap</span></td></tr>
+</table>
+</div></div>
+
+<div class="fiche f-teal"><div class="hd">🏃 FICHE G2 — bouger, rebondir, piloter</div><div class="bd">
+<table>
+<tr><td><b>Bouger</b></td><td><code>x = x + dx</code> (et redessiner en <code>x</code> à chaque tour)</td></tr>
+<tr><td><b>Rebondir</b></td><td><code>if x &lt; 40 or x &gt; 760: dx = -dx</code></td></tr>
+<tr><td><b>Plein d'objets</b></td><td>une <b>liste</b> + une boucle <code>for b in balles:</code></td></tr>
+<tr><td><b>Hasard</b></td><td><code>random.randint(50, 750)</code> · <code>random.choice([-4, 4])</code></td></tr>
+<tr><td><b>Souris</b></td><td><code>mx, my = pygame.mouse.get_pos()</code></td></tr>
+<tr><td><b>Flèches</b></td><td><code>t = pygame.key.get_pressed()</code> puis <code>if t[pygame.K_LEFT]:</code></td></tr>
+<tr><td><b>Traces</b></td><td>enlève <code>ecran.fill(...)</code> → ça laisse des traînées 🌈</td></tr>
+<tr><td><b>Arc-en-ciel</b></td><td><code>c = pygame.Color(0); c.hsva = (angle, 100, 100, 100)</code></td></tr>
+</table>
+</div></div>
+
+<div class="fiche f-blue"><div class="hd">🌌 FICHE G3 — les effets demoscene</div><div class="bd">
+<table>
+<tr><td><b>Starfield</b></td><td>étoiles en 3D <code>(x, y, z)</code> ; <code>z</code> diminue (s'approche) ; à l'écran <code>x/z</code>, <code>y/z</code></td></tr>
+<tr><td><b>Plasma</b></td><td>des <code>np.sin(...)</code> additionnés → couleurs ; <code>numpy</code> pour aller vite</td></tr>
+<tr><td><b>Scroller</b></td><td><code>police = pygame.font.Font(None, 90)</code> · <code>ecran.blit(texte, (sx, y))</code> · <code>sx -= 5</code></td></tr>
+<tr><td><b>Musique</b></td><td><code>pygame.mixer.init()</code> · <code>.music.load("x.ogg")</code> · <code>.music.play(-1)</code></td></tr>
+<tr><td><b>Petite image agrandie</b></td><td>dessine en 200×150, puis <code>pygame.transform.scale(surf, (800,600))</code> = rapide</td></tr>
+<tr><td><b>Empiler</b></td><td>une demo = plusieurs effets dans la <b>même</b> boucle, du fond vers l'avant</td></tr>
+</table>
+</div></div>
+
+<div class="fiche f-purple"><div class="hd">🎆 FICHE G4 — les shaders (glslViewer)</div><div class="bd">
+<table>
+<tr><td>écrire / lancer</td><td><code>micro mon.frag</code> &nbsp;puis&nbsp; <code>cage -- glslViewer mon.frag</code></td></tr>
+<tr><td>début du fichier</td><td><code>#ifdef GL_ES</code> / <code>precision mediump float;</code> / <code>#endif</code></td></tr>
+<tr><td>couleur du pixel</td><td><code>gl_FragColor = vec4(R, V, B, 1.0);</code> (de <b>0 à 1</b> !)</td></tr>
+<tr><td>position du pixel</td><td><code>vec2 uv = gl_FragCoord.xy / u_resolution.xy;</code> (de 0 à 1)</td></tr>
+<tr><td>le temps (animer)</td><td><code>uniform float u_time;</code> → mets-le dans <code>sin(u_time + ...)</code></td></tr>
+<tr><td>la souris</td><td><code>uniform vec2 u_mouse;</code></td></tr>
+<tr><td>outils maths</td><td><code>sin</code> <code>cos</code> <code>length</code> <code>smoothstep(a,b,x)</code> <code>mix(c1,c2,t)</code></td></tr>
+</table>
+<div class="small muted">Astuce : pour comprendre les shaders, le site « The Book of Shaders » est génial (à regarder avec papa).</div>
+</div></div>
+
+<p class="footer">🌟 Bravo l'artiste ! Tu sais maintenant faire chanter <b>et</b> briller l'ordinateur. 🎵🎨<br>
+<span class="small muted">Musique ou pixels : on change une petite chose, on regarde, on s'émerveille. Recommence à l'infini. ✨</span></p>
+</body></html>
