@@ -719,6 +719,15 @@ les réussir. Tes 3 outils d'explorateur :</p>
 <tr><td>Serpent / Tetris</td><td><code>pkg install nsnake bastet</code></td><td>Les classiques</td></tr>
 <tr><td>2048 / Sudoku / Échecs</td><td><code>pkg install 2048-cli nudoku gnuchess</code></td><td>Puzzles &amp; réflexion</td></tr>
 </table>
+<div class="tip">🕹️ <b>Zork &amp; les fictions interactives :</b> <code>frotz</code> n'est que le
+<b>lecteur</b> — il lui faut en plus un <b>fichier de jeu</b> (<code>.dat</code> ou <code>.z5</code>),
+que papa aura déposé dans <code>~/Jeux/</code>. Pour lancer Zork :
+<div class="cmd"><b>frotz</b> ~/Jeux/zork1.dat</div>
+Tu joues en tapant des ordres <b>en anglais</b> : <code>look</code> (regarder autour),
+<code>north</code> / <code>south</code> / <code>east</code> / <code>west</code> (aller),
+<code>take lamp</code> (prendre la lampe), <code>open mailbox</code> (ouvrir),
+<code>inventory</code> (ce que tu portes).
+<br>💾 <b>Sauvegarder :</b> <code>save</code> · 🚪 <b>Quitter :</b> <code>quit</code> puis <code>y</code>.</div>
 <div class="tip"><b>Dwarf Fortress</b> n'est pas dans la logithèque → essaie <b>Cataclysm DDA</b> qui lui ressemble, ou demande à papa.</div>
 
 <h2>🔭 Découverte : tes photos &amp; le ciel</h2>

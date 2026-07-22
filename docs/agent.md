@@ -217,5 +217,37 @@ sous-domaines sont inclus), puis on applique à une classe ou à tous.
   PC enfants en mode console (cf. `kid-lockdown.sh`) n'en ont pas. Quad9 (`9.9.9.9`) est l'upstream
   par défaut (filtrage anti-malware côté résolveur en bonus).
 
+- **Liste blanche et `dnf` / `pkg install`** : les paquets Fedora se téléchargent depuis des
+  **miroirs tiers** (domaines variés et tournants), qui ne sont évidemment pas dans la liste →
+  `pkg install` échouerait (« All mirrors were tried »). `kidfw` **épingle donc automatiquement
+  `dnf` sur `dl.fedoraproject.org`** (couvert par le domaine système `fedoraproject.org`, toujours
+  autorisé) **dès que le mode passe en `whitelist`**, et rend la main aux miroirs normaux en
+  `off`/`blacklist`. Rien à faire à la main.
+  > ⚠️ Filtrer par **process** (règle nftables `skuid`) ne suffit **pas** : avec `systemd-resolved`
+  > (défaut Fedora), c'est *lui* — et non `dnf` — qui émet la requête sortante. D'où l'épinglage.
+
 Commandes locales : `kidfw status` (état), `kidfw set <mode>` puis `kidfw apply` (en root). En
 usage normal, **tout passe par le tableau de bord**.
+
+### 🕹️ Zork &amp; fictions interactives (`frotz`)
+
+`pkg install frotz` installe seulement le **lecteur** (interpréteur Z-machine) : il faut **en plus
+un fichier de jeu** (`.dat` / `.z5`), que Fedora ne distribue pas (jeux Infocom propriétaires).
+
+Côté **admin**, une fois : récupère le fichier depuis **ta propre copie légitime** (ex. l'installeur
+GOG « Zork I », dont on extrait `ZORK1.DAT` avec `innoextract`), puis dépose-le chez l'enfant :
+
+```bash
+innoextract -s -e setup-XXXXX-Zork_I_PCDOS.exe        # -> app/C/DATA/ZORK1.DAT
+install -D -m0644 -o <enfant> -g <enfant> app/C/DATA/ZORK1.DAT /home/<enfant>/Jeux/zork1.dat
+```
+
+Côté **enfant**, pour jouer :
+
+```bash
+frotz ~/Jeux/zork1.dat
+```
+
+Ordres du jeu (en anglais) : `look`, `north`/`south`/`east`/`west`, `take lamp`, `open mailbox`,
+`inventory` · **sauvegarder** `save` · **quitter** `quit` puis `y`. *(C'est aussi documenté dans le
+guide enfant, section « Installer des jeux en console ».)*

@@ -21,7 +21,7 @@ set -euo pipefail
 # Version du bundle agent (surveillance + quota + durcissement). À INCRÉMENTER à
 # chaque évolution de l'agent : le tableau de bord la compare à
 # /etc/kidtime/agent-version sur chaque PC et propose la mise à jour si différent.
-AGENT_VERSION=1.1.5
+AGENT_VERSION=1.1.6
 
 if [[ $EUID -ne 0 ]]; then
   echo "ERREUR : à lancer en root (sudo $0 <compte_enfant>)." >&2
@@ -404,6 +404,12 @@ table ip kidfw {
   chain out {
     type nat hook output priority dstnat; policy accept;
     meta skuid "dnsmasq" return
+    # Exemption des process ROOT (admin) du filtre DNS.
+    # ⚠️ SANS EFFET si systemd-resolved relaie les résolutions (défaut Fedora) :
+    #    c'est LUI, et non root/dnf, qui émet la requête sortante. Pour que
+    #    'dnf'/'pkg install' marche en liste blanche, c'est pin_dnf (épinglage
+    #    sur dl.fedoraproject.org) qui fait réellement le travail.
+    meta skuid 0 return
     ip daddr 127.0.0.0/8 return
     ip daddr $UPSTREAM return
     udp dport 53 redirect to :53
@@ -424,6 +430,7 @@ table ip6 kidfw {
   chain out {
     type nat hook output priority dstnat; policy accept;
     meta skuid "dnsmasq" return
+    meta skuid 0 return          # idem : root (dnf/topgrade/maj) hors filtre
     ip6 daddr ::1 return
     udp dport 53 redirect to :53
     tcp dport 53 redirect to :53
@@ -436,6 +443,30 @@ NFT6
 ensure_dnsmasq(){ command -v dnsmasq >/dev/null 2>&1 || rpm -q dnsmasq >/dev/null 2>&1 \
   || dnf install -y dnsmasq >/dev/null 2>&1 || true; }
 
+# --- dnf & LISTE BLANCHE ----------------------------------------------------
+# En liste blanche, les paquets se téléchargent depuis des MIROIRS Fedora tiers
+# (domaines variés et tournants : distrohub.kyiv.ua, b4sh.mm.fcix.net…) qui ne
+# sont évidemment pas dans la liste -> 'dnf' / 'pkg install' échoue ("All mirrors
+# were tried"). On épingle donc dnf sur dl.fedoraproject.org, couvert par le
+# domaine système fedoraproject.org toujours autorisé. En off/blacklist on rend
+# la main aux miroirs (plus rapides, moins de charge sur le serveur maître).
+# NB : filtrer par process (nft 'skuid') ne suffit PAS quand systemd-resolved
+# relaie toutes les résolutions — c'est lui, et pas dnf, qui sort sur le réseau.
+pin_dnf(){
+  command -v dnf >/dev/null 2>&1 || return 0
+  dnf config-manager setopt fedora.metalink="" \
+    fedora.baseurl='https://dl.fedoraproject.org/pub/fedora/linux/releases/$releasever/Everything/$basearch/os/' >/dev/null 2>&1
+  dnf config-manager setopt updates.metalink="" \
+    updates.baseurl='https://dl.fedoraproject.org/pub/fedora/linux/updates/$releasever/Everything/$basearch/' >/dev/null 2>&1
+  return 0
+}
+unpin_dnf(){
+  command -v dnf >/dev/null 2>&1 || return 0
+  dnf config-manager unsetopt fedora.baseurl fedora.metalink \
+                              updates.baseurl updates.metalink >/dev/null 2>&1
+  return 0
+}
+
 case "${1:-apply}" in
   set)
     m="${2:-off}"; case "$m" in off|blacklist|whitelist) ;; *) echo "mode invalide: $m" >&2; exit 2;; esac
@@ -446,6 +477,7 @@ case "${1:-apply}" in
       unload_nft; rm -f "$DROPIN"
       systemctl disable --now dnsmasq >/dev/null 2>&1 || true
       command -v resolvectl >/dev/null 2>&1 && resolvectl flush-caches >/dev/null 2>&1 || true
+      unpin_dnf                       # filtre off -> miroirs Fedora normaux
       log "filtre désactivé (off)"
     else
       ensure_dnsmasq
@@ -454,6 +486,9 @@ case "${1:-apply}" in
       systemctl restart dnsmasq >/dev/null 2>&1 || systemctl start dnsmasq >/dev/null 2>&1 || true
       load_nft
       command -v resolvectl >/dev/null 2>&1 && resolvectl flush-caches >/dev/null 2>&1 || true
+      # liste blanche = miroirs tiers bloqués -> dnf épinglé sur dl.fedoraproject.org
+      # (sinon 'pkg install' de l'enfant échouerait). Blacklist : miroirs normaux.
+      if [ "$MODE" = whitelist ]; then pin_dnf; else unpin_dnf; fi
       log "filtre appliqué (mode=$MODE, $(domains | wc -l) domaine(s))"
     fi ;;
   status)
