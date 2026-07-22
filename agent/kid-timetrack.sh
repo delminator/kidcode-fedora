@@ -21,7 +21,7 @@ set -euo pipefail
 # Version du bundle agent (surveillance + quota + durcissement). À INCRÉMENTER à
 # chaque évolution de l'agent : le tableau de bord la compare à
 # /etc/kidtime/agent-version sur chaque PC et propose la mise à jour si différent.
-AGENT_VERSION=1.1.6
+AGENT_VERSION=1.1.7
 
 if [[ $EUID -ne 0 ]]; then
   echo "ERREUR : à lancer en root (sudo $0 <compte_enfant>)." >&2
@@ -331,6 +331,37 @@ if [ -d /etc/avahi/services ] || mkdir -p /etc/avahi/services 2>/dev/null; then
 </service-group>
 XML
   echo "    service mDNS _kidcode._tcp publié (id=$KID_ID) → auto-réparation IP"
+fi
+
+# ---------------------------------------------------------------------------
+# 3b-bis. Rester ADMINISTRABLE À DISTANCE : pas de veille par INACTIVITÉ.
+#     Les PC enfants se mettaient en veille très vite et devenaient injoignables
+#     pour la maintenance (mises à jour, pare-feu, dépannage). On désactive donc
+#     UNIQUEMENT la veille automatique sur inactivité. On NE touche PAS au
+#     comportement de fermeture du capot : un portable continue de se suspendre
+#     quand on le referme (sécurité : pas de surchauffe dans un sac). La veille
+#     manuelle reste possible aussi.
+# ---------------------------------------------------------------------------
+echo "==> Désactivation de la veille AUTOMATIQUE (PC joignable à distance)"
+mkdir -p /etc/systemd/logind.conf.d
+cat > /etc/systemd/logind.conf.d/50-kidcode-nosleep.conf <<'LG'
+# kidcode : pas de mise en veille sur inactivité (le PC doit rester administrable).
+# NB : la fermeture du capot garde son comportement par défaut (portables protégés).
+[Login]
+IdleAction=ignore
+IdleActionSec=0
+LG
+# reload (PAS restart : un restart de logind peut couper les sessions ouvertes)
+systemctl reload systemd-logind >/dev/null 2>&1 || true
+# Bureaux GNOME : défaut SYSTÈME = ne jamais suspendre sur inactivité
+if command -v dconf >/dev/null 2>&1; then
+  mkdir -p /etc/dconf/db/local.d
+  cat > /etc/dconf/db/local.d/50-kidcode-nosleep <<'DC'
+[org/gnome/settings-daemon/plugins/power]
+sleep-inactive-ac-type='nothing'
+sleep-inactive-battery-type='nothing'
+DC
+  dconf update 2>/dev/null || true
 fi
 
 # ---------------------------------------------------------------------------
